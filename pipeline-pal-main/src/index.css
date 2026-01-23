@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark technical theme */
+    --background: 220 20% 10%;
+    --foreground: 210 20% 90%;
+
+    --card: 220 20% 14%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 20% 90%;
+
+    /* Primary - Technical Blue */
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Cool Gray */
+    --secondary: 220 15% 22%;
+    --secondary-foreground: 210 20% 90%;
+
+    /* Pipeline Stage Colors */
+    --stage-fetch: 35 100% 50%;
+    --stage-decode: 210 100% 55%;
+    --stage-execute: 280 80% 55%;
+    --stage-memory: 160 70% 45%;
+    --stage-writeback: 340 80% 55%;
+
+    /* ALU Orange */
+    --alu: 25 95% 55%;
+    --alu-foreground: 0 0% 100%;
+
+    /* Control Blue */
+    --control: 210 90% 45%;
+    --control-foreground: 0 0% 100%;
+
+    /* Register Yellow/Gold */
+    --register: 45 90% 50%;
+    --register-foreground: 220 20% 10%;
+
+    /* Data flow */
+    --data-flow: 180 70% 50%;
+
+    /* Muted */
+    --muted: 220 15% 20%;
+    --muted-foreground: 220 10% 55%;
+
+    /* Accent - Cyan glow */
+    --accent: 180 100% 45%;
+    --accent-foreground: 220 20% 10%;
+
+    /* Success/Active */
+    --success: 145 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 35 100% 50%;
+    --warning-foreground: 220 20% 10%;
+
+    /* Destructive */
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 25%;
+    --input: 220 15% 22%;
+    --ring: 210 100% 50%;
+
+    --radius: 0.5rem;
+
+    /* Grid pattern */
+    --grid-color: 220 15% 18%;
+
+    --sidebar-background: 220 20% 12%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 22%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 15% 25%;
+    --sidebar-ring: 210 100% 50%;
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(var(--grid-color)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--grid-color)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3),
+                0 0 40px hsl(var(--primary) / 0.1);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 15px hsl(var(--accent) / 0.4);
+  }
+
+  .glow-alu {
+    box-shadow: 0 0 20px hsl(var(--alu) / 0.4);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 15px hsl(var(--success) / 0.5);
+  }
+
+  .pipeline-connector {
+    background: linear-gradient(90deg, 
+      hsl(var(--data-flow) / 0.8) 0%, 
+      hsl(var(--data-flow) / 0.4) 50%,
+      hsl(var(--data-flow) / 0.8) 100%);
+    height: 2px;
+  }
+
+  .stage-badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+
+  .hex-value {
+    @apply font-mono text-sm tracking-wide;
+  }
+
+  .register-cell {
+    @apply font-mono text-xs p-2 rounded border border-border/50 bg-secondary/50 transition-all duration-300;
+  }
+
+  .register-cell.updated {
+    @apply border-success bg-success/20 glow-success;
+  }
+
+  .instruction-row {
+    @apply font-mono text-sm py-1 px-3 rounded transition-all duration-200;
+  }
+
+  .instruction-row.active {
+    @apply bg-primary/20 border-l-2 border-primary glow-primary;
+  }
+
+  .panel-header {
+    @apply flex items-center gap-2 pb-3 mb-3 border-b border-border/50;
+  }
+
+  .panel-title {
+    @apply text-sm font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+
+  .control-btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 
+           flex items-center gap-2 text-sm;
+  }
+
+  .control-btn-primary {
+    @apply control-btn bg-primary text-primary-foreground hover:bg-primary/90 glow-primary;
+  }
+
+  .control-btn-secondary {
+    @apply control-btn bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+
+  .control-btn-destructive {
+    @apply control-btn bg-destructive text-destructive-foreground hover:bg-destructive/90;
+  }
+
+  .data-badge {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-data-flow {
+    animation: dataFlow 2s ease-in-out infinite;
+  }
+
+  @keyframes dataFlow {
+    0%, 100% { opacity: 0.4; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(5px); }
+  }
+}
