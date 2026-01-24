@@ -48,6 +48,16 @@ class CPU:
             "result": 0,
             "zero": True
         }
+        
+        # Statistics tracking
+        self.stage_cycles = {
+            "IF": 0,
+            "ID": 0,
+            "EX": 0,
+            "MEM": 0,
+            "WB": 0
+        }
+        self.clock_frequency = 1e9  # 1 GHz in Hz
     
     def load_program(self, instructions: List[int]):
         """Load machine code program into instruction memory"""
@@ -80,6 +90,15 @@ class CPU:
             "result": 0,
             "zero": True
         }
+        
+        # Reset statistics
+        self.stage_cycles = {
+            "IF": 0,
+            "ID": 0,
+            "EX": 0,
+            "MEM": 0,
+            "WB": 0
+        }
     
     def step(self):
         """Execute one clock cycle"""
@@ -111,6 +130,19 @@ class CPU:
         else:
             self._decode_stage()
             self._fetch_stage()
+        
+        # Track statistics for active stages
+        if self.if_id.valid:
+            self.stage_cycles["IF"] += 1
+        if self.id_ex.valid:
+            self.stage_cycles["ID"] += 1
+        if self.ex_mem.valid:
+            self.stage_cycles["EX"] += 1
+        if self.mem_wb.valid:
+            self.stage_cycles["MEM"] += 1
+        # WB is counted if mem_wb has valid instruction that commits a result
+        if self.mem_wb.valid and hasattr(self.mem_wb, 'reg_write') and self.mem_wb.reg_write:
+            self.stage_cycles["WB"] += 1
         
         # Print detailed stage information
         print(f"\n📋 PIPELINE STAGES:")
@@ -352,6 +384,9 @@ class CPU:
     
     def get_state(self) -> dict:
         """Return complete CPU state for API"""
+        # Calculate execution time (in seconds)
+        execution_time = self.cycle / self.clock_frequency if self.clock_frequency > 0 else 0
+        
         return {
             "cycle": self.cycle,
             "pc": self.pc,
@@ -367,5 +402,10 @@ class CPU:
             },
             "alu": self.alu_state,
             "hazards": self.hazard_state.to_dict(),
-            "instructionMemory": self.instr_mem.get_all()
+            "instructionMemory": self.instr_mem.get_all(),
+            "statistics": {
+                "total_cycles": self.cycle,
+                "execution_time_seconds": execution_time,
+                "stage_cycles": self.stage_cycles
+            }
         }

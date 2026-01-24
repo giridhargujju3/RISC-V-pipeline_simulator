@@ -281,13 +281,18 @@ function simulateCycle(state: CPUState): CPUState {
 export function useCPUSimulator() {
   const [state, setState] = useState<CPUState>(INITIAL_CPU_STATE);
   const [useBackend] = useState(true); // Always use backend
+  const [cycleHistory, setCycleHistory] = useState<CPUState[]>([INITIAL_CPU_STATE]);
   const runIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const step = useCallback(async () => {
     try {
       console.log('Calling backend step...');
       const apiState = await cpuApi.step();
-      setState(current => apiStateToFrontend(apiState, current));
+      setState(current => {
+        const newState = apiStateToFrontend(apiState, current);
+        setCycleHistory(prev => [...prev, newState]);
+        return newState;
+      });
     } catch (error) {
       console.error('Backend step failed:', error);
     }
@@ -301,10 +306,13 @@ export function useCPUSimulator() {
     
     try {
       const apiState = await cpuApi.reset();
-      setState(apiStateToFrontend(apiState));
+      const newState = apiStateToFrontend(apiState);
+      setState(newState);
+      setCycleHistory([newState]);
     } catch (error) {
       console.error('Backend reset failed:', error);
       setState(INITIAL_CPU_STATE);
+      setCycleHistory([INITIAL_CPU_STATE]);
     }
   }, []);
 
@@ -316,7 +324,9 @@ export function useCPUSimulator() {
 
     try {
       const apiState = await cpuApi.loadProgram(instructions);
-      setState(apiStateToFrontend(apiState));
+      const newState = apiStateToFrontend(apiState);
+      setState(newState);
+      setCycleHistory([newState]);
     } catch (error) {
       console.error('Backend load failed:', error);
     }
@@ -332,6 +342,7 @@ export function useCPUSimulator() {
         const apiState = await cpuApi.step();
         setState(current => {
           const newState = apiStateToFrontend(apiState, current);
+          setCycleHistory(prev => [...prev, newState]);
           if (newState.halted) {
             if (runIntervalRef.current) {
               clearInterval(runIntervalRef.current);
@@ -359,6 +370,14 @@ export function useCPUSimulator() {
     }
     setState(current => ({ ...current, running: false }));
   }, []);
+
+  const backward = useCallback(() => {
+    if (cycleHistory.length > 1) {
+      const previousCycle = cycleHistory[cycleHistory.length - 2];
+      setState(previousCycle);
+      setCycleHistory(prev => prev.slice(0, -1));
+    }
+  }, [cycleHistory]);
 
   useEffect(() => {
     return () => {
@@ -420,6 +439,7 @@ export function useCPUSimulator() {
     reset,
     run,
     pause,
+    backward,
     loadProgram,
     useBackend,
     setUseBackend: () => {}, // No-op since we always use backend

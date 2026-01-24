@@ -1,9 +1,16 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Terminal, Info } from 'lucide-react';
+import { Terminal, Info, ChevronRight } from 'lucide-react';
 import { CPUState } from '@/types/cpu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useState, useEffect } from 'react';
+import { CycleDetailsSidebar } from './CycleDetailsSidebar';
 
 interface ExecutionLogProps {
+  state: CPUState;
+}
+
+interface CycleRecord {
+  cycle: number;
   state: CPUState;
 }
 
@@ -15,6 +22,24 @@ interface LogEntry {
 }
 
 export function ExecutionLog({ state }: ExecutionLogProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [cycleHistory, setCycleHistory] = useState<CycleRecord[]>([]);
+
+  // Track cycle changes and accumulate history
+  useEffect(() => {
+    if (state.cycle > 0) {
+      setCycleHistory((prev) => {
+        // Check if we already have this cycle recorded
+        if (prev.length > 0 && prev[prev.length - 1].cycle === state.cycle) {
+          // Update the last cycle's state
+          return [...prev.slice(0, -1), { cycle: state.cycle, state }];
+        }
+        // Add new cycle
+        return [...prev, { cycle: state.cycle, state }];
+      });
+    }
+  }, [state.cycle, state]);
+
   const generateLogEntries = (): LogEntry[] => {
     const logs: LogEntry[] = [];
     const cycle = state.cycle;
@@ -86,24 +111,34 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
 
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 h-full flex flex-col">
-        <div className="panel-header mb-3">
-          <Terminal className="w-4 h-4 text-primary" />
-          <h2 className="panel-title">Execution Log</h2>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="w-4 h-4 text-muted-foreground cursor-help ml-1" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="text-xs">
-                Real-time log showing which instructions are in each pipeline stage during the current cycle. 
-                Each entry shows the stage, instruction, and relevant details.
-              </p>
-            </TooltipContent>
-          </Tooltip>
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 h-[250px] sm:h-[300px] flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <div className="panel-header flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-primary" />
+            <h2 className="panel-title">Execution Log</h2>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  Real-time log showing which instructions are in each pipeline stage during the current cycle. 
+                  Each entry shows the stage, instruction, and relevant details.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1.5 hover:bg-secondary rounded transition-colors group"
+            aria-label="Open cycle details"
+            title="View detailed cycle information"
+          >
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
         </div>
 
-        <ScrollArea className="flex-1 h-[200px] sm:h-[250px]">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="space-y-2 pr-3">
             {state.cycle === 0 ? (
               <div className="text-center text-muted-foreground text-xs py-8">
@@ -116,7 +151,62 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
                   Cycle {state.cycle} - Pipeline Activity
                 </div>
                 {logs.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">Pipeline empty or flushed</div>
+                  <div className="space-y-3">
+                    {state.halted ? (
+                      // Execution Complete Summary
+                      <div className="space-y-3">
+                        <div className="bg-success/10 border border-success/30 rounded-lg p-4 text-center">
+                          <div className="text-xl font-bold text-success mb-2">✅ Execution Complete!</div>
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <div>Pipeline flushed successfully</div>
+                            <div className="font-semibold text-foreground">Total Cycles: {state.cycle}</div>
+                          </div>
+                        </div>
+
+                        {/* Final Register Values */}
+                        {Object.keys(state.registers).some(key => state.registers[key] !== 0) && (
+                          <div className="bg-primary/10 border border-primary/30 rounded-lg p-3">
+                            <div className="text-xs font-semibold text-primary mb-2">📋 Final Register State</div>
+                            <div className="text-xs font-mono text-muted-foreground space-y-1">
+                              {Object.entries(state.registers)
+                                .filter(([, value]) => value !== 0)
+                                .map(([reg, value]) => {
+                                  const regName = reg.startsWith('x') ? reg : `x${reg}`;
+                                  return (
+                                    <div key={reg} className="flex justify-between">
+                                      <span className="text-foreground font-semibold">{regName}:</span>
+                                      <span>{value}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Summary Stats */}
+                        <div className="bg-secondary/30 border border-border/50 rounded-lg p-3 space-y-1 text-[10px]">
+                          <div className="text-xs font-semibold text-foreground mb-2">📊 Execution Summary</div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Final PC:</span>
+                            <span className="font-mono text-foreground">0x{state.pc.toString(16).padStart(8, '0').toUpperCase()}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Status:</span>
+                            <span className="text-success font-semibold">Halted</span>
+                          </div>
+                        </div>
+
+                        <div className="text-center pt-2">
+                          <p className="text-[10px] text-muted-foreground italic">
+                            View complete execution details in the sidebar →
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Pipeline empty but still running
+                      <div className="text-xs text-muted-foreground italic">Pipeline empty or flushed</div>
+                    )}
+                  </div>
                 ) : (
                   logs.map((log, idx) => (
                     <div
@@ -135,7 +225,7 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
                 )}
                 
                 {/* Show hazard information if present */}
-                {(state.hazards?.forwardA || state.hazards?.forwardB || state.hazards?.stallRequired) && (
+                {(state.hazards?.forwardA || state.hazards?.forwardB || state.hazards?.stallRequired) && logs.length > 0 && (
                   <div className="mt-3 pt-2 border-t border-border">
                     <div className="text-xs font-semibold text-orange-500 mb-1">⚠️ Hazards Detected:</div>
                     {state.hazards?.stallRequired && (
@@ -167,6 +257,13 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
           </div>
         </div>
       </div>
+      
+      <CycleDetailsSidebar 
+        cycleHistory={cycleHistory} 
+        currentState={state} 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
     </TooltipProvider>
   );
 }

@@ -15,6 +15,7 @@ export interface Instruction {
 
 export interface PipelineRegister {
   instruction: string;
+  assembly?: string;
   pc: number;
   valid: boolean;
   // Decoded fields
@@ -25,8 +26,13 @@ export interface PipelineRegister {
   rs2_value?: number;
   immediate?: number;
   alu_result?: number;
-  mem_data?: number;
+  mem_data?: number | null;
   control_signals?: ControlSignals;
+  // Memory and Write Back stage properties
+  mem_read?: boolean;
+  mem_write?: boolean;
+  reg_write?: boolean;
+  mem_to_reg?: boolean;
 }
 
 export interface ControlSignals {
@@ -103,6 +109,19 @@ export interface CPUState {
   
   // Updated register tracking
   updatedRegister: number | null;
+  
+  // Statistics
+  statistics?: {
+    total_cycles: number;
+    execution_time_seconds: number;
+    stage_cycles: {
+      IF: number;
+      ID: number;
+      EX: number;
+      MEM: number;
+      WB: number;
+    };
+  };
 }
 
 // Sample RISC-V program: Compute sum of 1 to 5

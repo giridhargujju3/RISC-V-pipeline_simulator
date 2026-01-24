@@ -48,6 +48,17 @@ export interface APIState {
   };
   running: boolean;
   halted: boolean;
+  statistics?: {
+    total_cycles: number;
+    execution_time_seconds: number;
+    stage_cycles: {
+      IF: number;
+      ID: number;
+      EX: number;
+      MEM: number;
+      WB: number;
+    };
+  };
 }
 
 export interface ConfigOptions {
@@ -198,6 +209,8 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       valid: apiState.EX_MEM?.valid || false,
       rd: apiState.EX_MEM?.rd,
       alu_result: apiState.EX_MEM?.alu_result,
+      mem_read: false,
+      mem_write: false,
     },
     MEM_WB: {
       instruction: apiState.MEM_WB?.instruction || "NOP",
@@ -229,5 +242,6 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
     running: apiState.running || false,
     halted: apiState.halted || false,
     updatedRegister: updatedRegister !== -1 ? updatedRegister : null,
+    statistics: apiState.statistics,
   };
 }

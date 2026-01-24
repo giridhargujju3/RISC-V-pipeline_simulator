@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, StepForward, Cpu, Info } from 'lucide-react';
+import { Play, Pause, RotateCcw, StepForward, Cpu, Info, StepBack } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ControlPanelProps {
@@ -7,6 +7,7 @@ interface ControlPanelProps {
   running: boolean;
   halted: boolean;
   onStep: () => void;
+  onBackward: () => void;
   onRun: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -18,6 +19,7 @@ export function ControlPanel({
   running,
   halted,
   onStep,
+  onBackward,
   onRun,
   onPause,
   onReset,
@@ -85,6 +87,22 @@ export function ControlPanel({
           
           {/* Control Buttons */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onBackward}
+                  disabled={running || cycle === 0}
+                  className="control-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none justify-center"
+                >
+                  <StepBack className="w-4 h-4" />
+                  <span className="hidden sm:inline">Backward</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Go to previous cycle</p>
+              </TooltipContent>
+            </Tooltip>
+            
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
