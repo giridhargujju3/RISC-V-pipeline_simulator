@@ -135,20 +135,20 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
                 )}
                 
                 {/* Show hazard information if present */}
-                {(state.hazards.forward_a || state.hazards.forward_b || state.hazards.stall_required) && (
+                {(state.hazards?.forwardA || state.hazards?.forwardB || state.hazards?.stallRequired) && (
                   <div className="mt-3 pt-2 border-t border-border">
                     <div className="text-xs font-semibold text-orange-500 mb-1">⚠️ Hazards Detected:</div>
-                    {state.hazards.stall_required && (
+                    {state.hazards?.stallRequired && (
                       <div className="text-[10px] text-orange-400 ml-2">• Pipeline stall inserted</div>
                     )}
-                    {state.hazards.forward_a && (
+                    {state.hazards?.forwardA && (
                       <div className="text-[10px] text-blue-400 ml-2">
-                        • Forward A: {state.hazards.forward_a.source} → {state.hazards.forward_a.value}
+                        • Forward A: {state.hazards.forwardA.from} (x{state.hazards.forwardA.register}) → {state.hazards.forwardA.value}
                       </div>
                     )}
-                    {state.hazards.forward_b && (
+                    {state.hazards?.forwardB && (
                       <div className="text-[10px] text-blue-400 ml-2">
-                        • Forward B: {state.hazards.forward_b.source} → {state.hazards.forward_b.value}
+                        • Forward B: {state.hazards.forwardB.from} (x{state.hazards.forwardB.register}) → {state.hazards.forwardB.value}
                       </div>
                     )}
                   </div>

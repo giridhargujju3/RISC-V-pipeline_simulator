@@ -1,10 +1,10 @@
 // FastAPI Backend API Client
 import { CPUState, Instruction } from '@/types/cpu';
 
-// Configuration - can be updated to point to your Python backend
+// Configuration - Backend only
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-  enabled: import.meta.env.VITE_API_ENABLED === 'true',
+  enabled: true, // Always enabled
 };
 
 export interface APIPipelineRegister {
@@ -50,6 +50,18 @@ export interface APIState {
   halted: boolean;
 }
 
+export interface ConfigOptions {
+  isas: Record<string, { name: string; description: string; xlen: number }>;
+  cores: Record<string, { name: string; description: string; stages: number }>;
+}
+
+export interface CurrentConfig {
+  isa: string;
+  core: string;
+  isa_info: { name: string; description: string; xlen: number };
+  core_info: { name: string; description: string; stages: number };
+}
+
 class CPUApi {
   private baseUrl: string;
 
@@ -85,12 +97,43 @@ class CPUApi {
   }
 
   async loadProgram(instructions: Instruction[]): Promise<APIState> {
+    // Convert Instruction objects to machine code integers
+    const machineCode = instructions.map(instr => parseInt(instr.hex, 16));
+    
     const response = await fetch(`${this.baseUrl}/load`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instructions }),
+      body: JSON.stringify({ instructions: machineCode }),
     });
     if (!response.ok) throw new Error('Failed to load program');
+    return response.json();
+  }
+
+  async getConfig(): Promise<CurrentConfig> {
+    const response = await fetch(`${this.baseUrl}/config`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Failed to get config');
+    return response.json();
+  }
+
+  async getConfigOptions(): Promise<ConfigOptions> {
+    const response = await fetch(`${this.baseUrl}/config/options`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Failed to get config options');
+    return response.json();
+  }
+
+  async setConfig(isa?: string, core?: string): Promise<{ success: boolean; isa: string; core: string }> {
+    const response = await fetch(`${this.baseUrl}/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isa, core }),
+    });
+    if (!response.ok) throw new Error('Failed to set config');
     return response.json();
   }
 }
@@ -103,11 +146,14 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
     ? apiState.registers.findIndex((v, i) => v !== prevState.registers[i])
     : null;
 
+  // Ensure instruction_memory exists and is an array
+  const instructionMemory = apiState.instruction_memory || [];
+
   return {
     cycle: apiState.cycle,
     pc: apiState.pc,
     registers: apiState.registers,
-    instructionMemory: apiState.instruction_memory.map(i => ({
+    instructionMemory: instructionMemory.map(i => ({
       address: i.address,
       hex: i.hex,
       assembly: i.assembly,
@@ -115,25 +161,25 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
     })),
     dataMemory: new Map(),
     IF_ID: {
-      instruction: apiState.IF_ID.instruction,
-      assembly: apiState.IF_ID.instruction,
-      pc: apiState.IF_ID.pc,
-      valid: apiState.IF_ID.valid,
-      rd: apiState.IF_ID.rd,
-      rs1: apiState.IF_ID.rs1,
-      rs2: apiState.IF_ID.rs2,
+      instruction: apiState.IF_ID?.instruction || "NOP",
+      assembly: apiState.IF_ID?.instruction || "NOP",
+      pc: apiState.IF_ID?.pc || 0,
+      valid: apiState.IF_ID?.valid || false,
+      rd: apiState.IF_ID?.rd,
+      rs1: apiState.IF_ID?.rs1,
+      rs2: apiState.IF_ID?.rs2,
     },
     ID_EX: {
-      instruction: apiState.ID_EX.instruction,
-      assembly: apiState.ID_EX.instruction,
-      pc: apiState.ID_EX.pc,
-      valid: apiState.ID_EX.valid,
-      rd: apiState.ID_EX.rd,
-      rs1: apiState.ID_EX.rs1,
-      rs2: apiState.ID_EX.rs2,
-      rs1_value: apiState.ID_EX.rs1_value,
-      rs2_value: apiState.ID_EX.rs2_value,
-      immediate: apiState.ID_EX.immediate,
+      instruction: apiState.ID_EX?.instruction || "NOP",
+      assembly: apiState.ID_EX?.instruction || "NOP",
+      pc: apiState.ID_EX?.pc || 0,
+      valid: apiState.ID_EX?.valid || false,
+      rd: apiState.ID_EX?.rd,
+      rs1: apiState.ID_EX?.rs1,
+      rs2: apiState.ID_EX?.rs2,
+      rs1_value: apiState.ID_EX?.rs1_value,
+      rs2_value: apiState.ID_EX?.rs2_value,
+      immediate: apiState.ID_EX?.immediate,
       control_signals: {
         regWrite: true,
         memRead: false,
@@ -146,36 +192,42 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       }
     },
     EX_MEM: {
-      instruction: apiState.EX_MEM.instruction,
-      assembly: apiState.EX_MEM.instruction,
-      pc: apiState.EX_MEM.pc,
-      valid: apiState.EX_MEM.valid,
-      rd: apiState.EX_MEM.rd,
-      alu_result: apiState.EX_MEM.alu_result,
+      instruction: apiState.EX_MEM?.instruction || "NOP",
+      assembly: apiState.EX_MEM?.instruction || "NOP",
+      pc: apiState.EX_MEM?.pc || 0,
+      valid: apiState.EX_MEM?.valid || false,
+      rd: apiState.EX_MEM?.rd,
+      alu_result: apiState.EX_MEM?.alu_result,
     },
     MEM_WB: {
-      instruction: apiState.MEM_WB.instruction,
-      assembly: apiState.MEM_WB.instruction,
-      pc: apiState.MEM_WB.pc,
-      valid: apiState.MEM_WB.valid,
-      rd: apiState.MEM_WB.rd,
-      alu_result: apiState.MEM_WB.alu_result,
+      instruction: apiState.MEM_WB?.instruction || "NOP",
+      assembly: apiState.MEM_WB?.instruction || "NOP",
+      pc: apiState.MEM_WB?.pc || 0,
+      valid: apiState.MEM_WB?.valid || false,
+      rd: apiState.MEM_WB?.rd,
+      alu_result: apiState.MEM_WB?.alu_result,
       mem_data: null,
       reg_write: true,
       mem_to_reg: false,
     },
-    alu: apiState.alu,
+    alu: apiState.alu || {
+      operandA: 0,
+      operandB: 0,
+      operation: "NOP",
+      result: 0,
+      zero: true
+    },
     hazards: {
       rawHazard: false,
       forwardA: null,
       forwardB: null,
-      stallRequired: apiState.hazards.stall,
+      stallRequired: apiState.hazards?.stall || false,
       hazardDetails: [],
     },
-    stall: apiState.hazards.stall,
+    stall: apiState.hazards?.stall || false,
     flush: false,
-    running: apiState.running,
-    halted: apiState.halted,
+    running: apiState.running || false,
+    halted: apiState.halted || false,
     updatedRegister: updatedRegister !== -1 ? updatedRegister : null,
   };
 }

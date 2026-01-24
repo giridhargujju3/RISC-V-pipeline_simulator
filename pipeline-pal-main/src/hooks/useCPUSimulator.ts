@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CPUState, INITIAL_CPU_STATE, Instruction, HazardDetail } from '@/types/cpu';
-import { cpuApi, apiStateToFrontend, API_CONFIG } from '@/lib/api';
+import { cpuApi, apiStateToFrontend, API_CONFIG, ConfigOptions } from '@/lib/api';
 
 // Detect data hazards and set up forwarding
 function detectHazards(state: CPUState): CPUState {
@@ -280,26 +280,18 @@ function simulateCycle(state: CPUState): CPUState {
 
 export function useCPUSimulator() {
   const [state, setState] = useState<CPUState>(INITIAL_CPU_STATE);
-  const [useBackend, setUseBackend] = useState(false);
+  const [useBackend] = useState(true); // Always use backend
   const runIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const step = useCallback(async () => {
-    if (useBackend && API_CONFIG.enabled) {
-      try {
-        console.log('Calling backend step...');
-        const apiState = await cpuApi.step();
-        setState(current => apiStateToFrontend(apiState, current));
-      } catch (error) {
-        console.error('Backend step failed:', error);
-      }
-    } else {
-      setState(current => {
-        if (current.halted) return current;
-        console.log(`Frontend step - Cycle ${current.cycle + 1}`);
-        return simulateCycle(current);
-      });
+    try {
+      console.log('Calling backend step...');
+      const apiState = await cpuApi.step();
+      setState(current => apiStateToFrontend(apiState, current));
+    } catch (error) {
+      console.error('Backend step failed:', error);
     }
-  }, [useBackend]);
+  }, []);
 
   const reset = useCallback(async () => {
     if (runIntervalRef.current) {
@@ -307,18 +299,14 @@ export function useCPUSimulator() {
       runIntervalRef.current = null;
     }
     
-    if (useBackend && API_CONFIG.enabled) {
-      try {
-        const apiState = await cpuApi.reset();
-        setState(apiStateToFrontend(apiState));
-      } catch (error) {
-        console.error('Backend reset failed:', error);
-        setState(INITIAL_CPU_STATE);
-      }
-    } else {
+    try {
+      const apiState = await cpuApi.reset();
+      setState(apiStateToFrontend(apiState));
+    } catch (error) {
+      console.error('Backend reset failed:', error);
       setState(INITIAL_CPU_STATE);
     }
-  }, [useBackend]);
+  }, []);
 
   const loadProgram = useCallback(async (instructions: Instruction[]) => {
     if (runIntervalRef.current) {
@@ -326,20 +314,13 @@ export function useCPUSimulator() {
       runIntervalRef.current = null;
     }
 
-    if (useBackend && API_CONFIG.enabled) {
-      try {
-        const apiState = await cpuApi.loadProgram(instructions);
-        setState(apiStateToFrontend(apiState));
-      } catch (error) {
-        console.error('Backend load failed:', error);
-      }
-    } else {
-      setState({
-        ...INITIAL_CPU_STATE,
-        instructionMemory: instructions,
-      });
+    try {
+      const apiState = await cpuApi.loadProgram(instructions);
+      setState(apiStateToFrontend(apiState));
+    } catch (error) {
+      console.error('Backend load failed:', error);
     }
-  }, [useBackend]);
+  }, []);
 
   const run = useCallback(async () => {
     if (state.halted || state.running) return;
@@ -347,42 +328,29 @@ export function useCPUSimulator() {
     setState(current => ({ ...current, running: true }));
     
     runIntervalRef.current = setInterval(async () => {
-      if (useBackend && API_CONFIG.enabled) {
-        try {
-          const apiState = await cpuApi.step();
-          setState(current => {
-            const newState = apiStateToFrontend(apiState, current);
-            if (newState.halted) {
-              if (runIntervalRef.current) {
-                clearInterval(runIntervalRef.current);
-                runIntervalRef.current = null;
-              }
-              return { ...newState, running: false };
-            }
-            return newState;
-          });
-        } catch (error) {
-          console.error('Backend step failed during run:', error);
-          if (runIntervalRef.current) {
-            clearInterval(runIntervalRef.current);
-            runIntervalRef.current = null;
-          }
-          setState(current => ({ ...current, running: false }));
-        }
-      } else {
+      try {
+        const apiState = await cpuApi.step();
         setState(current => {
-          if (current.halted) {
+          const newState = apiStateToFrontend(apiState, current);
+          if (newState.halted) {
             if (runIntervalRef.current) {
               clearInterval(runIntervalRef.current);
               runIntervalRef.current = null;
             }
-            return { ...current, running: false };
+            return { ...newState, running: false };
           }
-          return simulateCycle(current);
+          return newState;
         });
+      } catch (error) {
+        console.error('Backend step failed during run:', error);
+        if (runIntervalRef.current) {
+          clearInterval(runIntervalRef.current);
+          runIntervalRef.current = null;
+        }
+        setState(current => ({ ...current, running: false }));
       }
     }, 500);
-  }, [state.halted, state.running, useBackend]);
+  }, [state.halted, state.running]);
 
   const pause = useCallback(() => {
     if (runIntervalRef.current) {
@@ -400,6 +368,52 @@ export function useCPUSimulator() {
     };
   }, []);
 
+  // Configuration state
+  const [configOptions, setConfigOptions] = useState<ConfigOptions>({
+    isas: {},
+    cores: {}
+  });
+  const [currentIsa, setCurrentIsa] = useState<string>('rv32i');
+  const [currentCore, setCurrentCore] = useState<string>('inorder_5stage');
+
+  // Fetch config options on mount
+  useEffect(() => {
+    cpuApi.getConfigOptions()
+      .then(options => {
+        setConfigOptions(options);
+      })
+      .catch(err => console.error('Failed to fetch config options:', err));
+
+    cpuApi.getConfig()
+      .then(config => {
+        setCurrentIsa(config.isa);
+        setCurrentCore(config.core);
+      })
+      .catch(err => console.error('Failed to fetch current config:', err));
+
+    // Load initial state from backend
+    cpuApi.getState()
+      .then(apiState => {
+        setState(apiStateToFrontend(apiState));
+      })
+      .catch(err => console.error('Failed to fetch initial state:', err));
+  }, []);
+
+  const setConfig = useCallback(async (isa: string, core: string) => {
+    try {
+      const result = await cpuApi.setConfig(isa, core);
+      if (result.success) {
+        setCurrentIsa(result.isa);
+        setCurrentCore(result.core);
+        // Fetch updated state
+        const apiState = await cpuApi.getState();
+        setState(apiStateToFrontend(apiState));
+      }
+    } catch (error) {
+      console.error('Failed to set config:', error);
+    }
+  }, []);
+
   return {
     state,
     step,
@@ -408,6 +422,10 @@ export function useCPUSimulator() {
     pause,
     loadProgram,
     useBackend,
-    setUseBackend,
+    setUseBackend: () => {}, // No-op since we always use backend
+    configOptions,
+    currentIsa,
+    currentCore,
+    setConfig,
   };
 }

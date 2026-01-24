@@ -11,7 +11,7 @@ export function ExecutionTimeline({ state }: ExecutionTimelineProps) {
     { name: 'ID', register: state.ID_EX, color: 'bg-stage-decode' },
     { name: 'EX', register: state.EX_MEM, color: 'bg-stage-execute' },
     { name: 'MEM', register: state.MEM_WB, color: 'bg-stage-memory' },
-    { name: 'WB', register: state.MEM_WB.valid && state.MEM_WB.rd !== undefined ? state.MEM_WB : null, color: 'bg-stage-writeback' },
+    { name: 'WB', register: state.MEM_WB?.valid && state.MEM_WB?.rd !== undefined ? state.MEM_WB : null, color: 'bg-stage-writeback' },
   ];
 
   return (
@@ -36,7 +36,10 @@ export function ExecutionTimeline({ state }: ExecutionTimelineProps) {
               {stage.name}
             </div>
             <div className="text-[10px] text-center mt-1 text-muted-foreground font-mono truncate px-1">
-              {stage.register?.valid ? stage.register.instruction.split(' ')[0] : '---'}
+              {stage.register?.valid && stage.register?.instruction ? 
+                (typeof stage.register.instruction === 'string' ? 
+                  stage.register.instruction.split(' ')[0] : '---') 
+                : '---'}
             </div>
           </div>
         ))}

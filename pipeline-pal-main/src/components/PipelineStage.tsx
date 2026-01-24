@@ -74,7 +74,11 @@ export function PipelineStage({ name, shortName, register, color, compact, descr
           "font-mono text-foreground truncate",
           compact ? "text-xs" : "text-sm"
         )}>
-          {register.valid ? register.instruction : "---"}
+          {register.valid && register.instruction ? 
+            (typeof register.instruction === 'string' ? register.instruction : 
+             typeof register.instruction === 'object' && register.instruction.assembly ? register.instruction.assembly :
+             'NOP') 
+            : "---"}
         </div>
         
         <div className={cn(
@@ -83,7 +87,8 @@ export function PipelineStage({ name, shortName, register, color, compact, descr
         )}>
           <span>PC:</span>
           <span className="font-mono text-foreground">
-            {register.valid ? `0x${register.pc.toString(16).padStart(8, '0').toUpperCase()}` : "---"}
+            {register.valid && register.pc !== undefined ? 
+              `0x${register.pc.toString(16).padStart(8, '0').toUpperCase()}` : "---"}
           </span>
         </div>
 

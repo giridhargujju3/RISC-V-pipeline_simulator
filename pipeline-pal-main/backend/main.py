@@ -23,6 +23,7 @@ import uvicorn
 if __name__ == "__main__":
     print("=" * 60)
     print("RISC-V 5-Stage Pipelined CPU Simulator")
+    print("Original Backend Integration v2.0")
     print("=" * 60)
     print("\nStarting server at http://localhost:8000")
     print("\nAPI Endpoints:")
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     print("=" * 60)
     
     uvicorn.run(
-        "api:app",
+        "api_new:app",
         host="0.0.0.0",
         port=8000,
         reload=True,

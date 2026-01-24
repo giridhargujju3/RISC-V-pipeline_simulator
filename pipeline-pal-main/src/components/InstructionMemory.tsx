@@ -9,6 +9,9 @@ interface InstructionMemoryProps {
 }
 
 export function InstructionMemory({ instructions, currentPC }: InstructionMemoryProps) {
+  // Safety check for instructions array
+  const safeInstructions = Array.isArray(instructions) ? instructions : [];
+  
   return (
     <TooltipProvider>
       <div className="bg-card rounded-xl border border-border p-3 sm:p-4">
@@ -26,31 +29,41 @@ export function InstructionMemory({ instructions, currentPC }: InstructionMemory
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-32 overflow-y-auto">
-          {instructions.map((instr) => {
-            const isActive = instr.address === currentPC;
+          {safeInstructions.length > 0 ? safeInstructions.map((instr, index) => {
+            if (!instr || typeof instr !== 'object') return null;
+            
+            const address = instr.address || (index * 4);
+            const hex = instr.hex || '00000000';
+            const assembly = instr.assembly || 'nop';
+            const isActive = address === currentPC;
+            
             return (
               <div
-                key={instr.address}
+                key={`instr-${address}-${index}`}
                 className={cn(
                   "instruction-row flex items-center gap-2 p-2 rounded border",
                   isActive ? "active border-primary bg-primary/10" : "border-border/50 bg-secondary/30"
                 )}
               >
                 <span className="text-muted-foreground w-8 text-[10px] font-mono">
-                  0x{instr.address.toString(16).padStart(2, '0').toUpperCase()}
+                  0x{address.toString(16).padStart(2, '0').toUpperCase()}
                 </span>
                 <span className="text-primary/70 w-16 text-[10px] font-mono truncate">
-                  {instr.hex}
+                  {hex}
                 </span>
                 <span className={cn(
                   "flex-1 text-[10px] truncate",
                   isActive ? "text-foreground font-medium" : "text-muted-foreground"
                 )}>
-                  {instr.assembly}
+                  {assembly}
                 </span>
               </div>
             );
-          })}
+          }) : (
+            <div className="col-span-full text-center text-muted-foreground text-xs py-4">
+              No instructions loaded
+            </div>
+          )}
         </div>
       </div>
     </TooltipProvider>
