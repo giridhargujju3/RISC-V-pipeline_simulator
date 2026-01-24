@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCPUSimulator } from '@/hooks/useCPUSimulator';
 import { ControlPanel } from '@/components/ControlPanel';
 import { PipelineVisualization } from '@/components/PipelineVisualization';
@@ -7,6 +8,7 @@ import { ALUPanel } from '@/components/ALUPanel';
 import { ExecutionTimeline } from '@/components/ExecutionTimeline';
 import { ExecutionLog } from '@/components/ExecutionLog';
 import { ExecutionStats } from '@/components/ExecutionStats';
+import { StatisticsDetailsSidebarDesktop } from '@/components/StatisticsDetailsSidebar';
 import { ControlSignalsPanel } from '@/components/ControlSignalsPanel';
 import { AssemblyEditor } from '@/components/AssemblyEditor';
 import { HazardPanel } from '@/components/HazardPanel';
@@ -35,6 +37,8 @@ const RiscVLogo = () => (
 );
 
 const Index = () => {
+  const [statsDetailsOpen, setStatsDetailsOpen] = useState(false);
+  
   const { 
     state, 
     step, 
@@ -233,7 +237,7 @@ const Index = () => {
 
               <TabsContent value="stats" className="mt-4 space-y-4">
                 <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-accent/20 shadow-xl p-1">
-                  <ExecutionStats state={state} />
+                  <ExecutionStats state={state} onDetails={() => setStatsDetailsOpen(true)} />
                 </div>
               </TabsContent>
             </Tabs>
@@ -269,7 +273,7 @@ const Index = () => {
 
             <div className="grid grid-cols-12 gap-4 mb-4">
               <div className="col-span-4">
-                <ExecutionStats state={state} />
+                <ExecutionStats state={state} onDetails={() => setStatsDetailsOpen(true)} />
               </div>
               <div className="col-span-8">
                 <ExecutionTimeline state={state} />
@@ -302,6 +306,13 @@ const Index = () => {
             </div>
           </div>
         </div>
+
+        {/* Statistics Details Sidebar - Desktop Only */}
+        <StatisticsDetailsSidebarDesktop
+          state={state}
+          isOpen={statsDetailsOpen}
+          onClose={() => setStatsDetailsOpen(false)}
+        />
       </div>
     </ErrorBoundary>
   );

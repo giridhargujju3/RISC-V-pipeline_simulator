@@ -2,6 +2,7 @@ import { HazardState, CPUState } from '@/types/cpu';
 import { AlertTriangle, ArrowRight, Pause, Zap, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface HazardPanelProps {
   state: CPUState;
@@ -14,7 +15,7 @@ export function HazardPanel({ state }: HazardPanelProps) {
 
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 h-[250px] sm:h-[300px] flex flex-col">
         <div className="panel-header">
           <AlertTriangle className={cn(
             "w-4 h-4",
@@ -40,7 +41,8 @@ export function HazardPanel({ state }: HazardPanelProps) {
           )}
         </div>
 
-        <div className="space-y-3">
+        <ScrollArea className="flex-1 overflow-hidden">
+          <div className="space-y-3 pr-3">
           {/* Forwarding Paths */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <ForwardingIndicator
@@ -117,7 +119,8 @@ export function HazardPanel({ state }: HazardPanelProps) {
               No hazards detected in current cycle
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
       </div>
     </TooltipProvider>
   );
