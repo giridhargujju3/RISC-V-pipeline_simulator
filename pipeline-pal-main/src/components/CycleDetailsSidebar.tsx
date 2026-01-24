@@ -127,14 +127,14 @@ export function CycleDetailsSidebar({ cycleHistory, currentState, isOpen, onClos
     return '0x' + num.toString(16).padStart(8, '0').toUpperCase();
   };
 
-  const renderCycleDetail = (record: CycleRecord) => {
+  const renderCycleDetail = (record: CycleRecord, index: number) => {
     const { cycle, state } = record;
     const stageDetails = getStageDetails(state);
     const pipelineStages = getPipelineStages(state);
     const registerState = getRegisterState(state);
 
     return (
-      <div key={cycle} className="mb-8 pb-8 border-b border-border/50 last:border-b-0">
+      <div key={`cycle-${index}-${cycle}`} className="mb-8 pb-8 border-b border-border/50 last:border-b-0">
         {/* Cycle Header */}
         <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-4">
           <div className="text-sm font-bold text-primary mb-2">
@@ -237,7 +237,7 @@ export function CycleDetailsSidebar({ cycleHistory, currentState, isOpen, onClos
               </div>
             ) : (
               <>
-                {cycleHistory.map((record) => renderCycleDetail(record))}
+                {cycleHistory.map((record, index) => renderCycleDetail(record, index))}
               </>
             )}
           </div>

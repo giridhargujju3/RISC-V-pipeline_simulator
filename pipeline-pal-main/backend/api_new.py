@@ -196,7 +196,18 @@ def get_state_dict():
             "forward_a": None,
             "forward_b": None
         },
-        "running": False
+        "running": False,
+        "statistics": {
+            "total_cycles": core.cycle,
+            "execution_time_seconds": (core.cycle / cfg.freq_hz) if cfg.freq_hz > 0 else 0,
+            "stage_cycles": {
+                "IF": max(0, core.cycle - 0),
+                "ID": max(0, core.cycle - 1),
+                "EX": max(0, core.cycle - 2),
+                "MEM": max(0, core.cycle - 3),
+                "WB": max(0, core.cycle - 4)
+            }
+        }
     }
 
 

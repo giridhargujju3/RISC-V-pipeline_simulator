@@ -286,15 +286,19 @@ export function useCPUSimulator() {
 
   const step = useCallback(async () => {
     try {
-      console.log('Calling backend step...');
+      console.log('📍 Calling backend step...');
       const apiState = await cpuApi.step();
       setState(current => {
         const newState = apiStateToFrontend(apiState, current);
-        setCycleHistory(prev => [...prev, newState]);
+        setCycleHistory(prev => {
+          const updated = [...prev, newState];
+          console.log('✅ Step completed - Cycle:', newState.cycle, 'History length:', updated.length);
+          return updated;
+        });
         return newState;
       });
     } catch (error) {
-      console.error('Backend step failed:', error);
+      console.error('❌ Backend step failed:', error);
     }
   }, []);
 
@@ -371,11 +375,36 @@ export function useCPUSimulator() {
     setState(current => ({ ...current, running: false }));
   }, []);
 
-  const backward = useCallback(() => {
+  const backward = useCallback(async () => {
     if (cycleHistory.length > 1) {
-      const previousCycle = cycleHistory[cycleHistory.length - 2];
-      setState(previousCycle);
-      setCycleHistory(prev => prev.slice(0, -1));
+      try {
+        // Get the target cycle (second to last in history)
+        const targetState = cycleHistory[cycleHistory.length - 2];
+        const targetCycle = targetState.cycle;
+        
+        console.log('🔙 Backward: Moving to cycle', targetCycle);
+        
+        // Reset backend to initial state
+        const resetApiState = await cpuApi.reset();
+        const resetState = apiStateToFrontend(resetApiState);
+        
+        // Re-execute steps to reach target cycle
+        let currentApiState = resetApiState;
+        for (let i = 0; i < targetCycle; i++) {
+          currentApiState = await cpuApi.step();
+        }
+        
+        // Update frontend state and history
+        const restoredState = apiStateToFrontend(currentApiState);
+        setState(restoredState);
+        setCycleHistory(prev => prev.slice(0, -1)); // Remove the last state
+        
+        console.log('✅ Backward complete - now at cycle:', restoredState.cycle);
+      } catch (error) {
+        console.error('❌ Backward failed:', error);
+      }
+    } else {
+      console.log('⚠️ Cannot go backward - at initial state');
     }
   }, [cycleHistory]);
 

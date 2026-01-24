@@ -9,6 +9,9 @@ interface ExecutionStatsProps {
 export function ExecutionStats({ state }: ExecutionStatsProps) {
   const stats = state.statistics;
 
+  // Debug log
+  console.log('ExecutionStats - state.cycle:', state.cycle, 'stats:', stats);
+
   if (!stats && state.cycle === 0) {
     return (
       <div className="bg-card rounded-xl border border-border p-3 sm:p-4">

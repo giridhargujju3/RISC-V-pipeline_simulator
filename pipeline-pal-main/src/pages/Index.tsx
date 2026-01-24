@@ -6,6 +6,7 @@ import { InstructionMemory } from '@/components/InstructionMemory';
 import { ALUPanel } from '@/components/ALUPanel';
 import { ExecutionTimeline } from '@/components/ExecutionTimeline';
 import { ExecutionLog } from '@/components/ExecutionLog';
+import { ExecutionStats } from '@/components/ExecutionStats';
 import { ControlSignalsPanel } from '@/components/ControlSignalsPanel';
 import { AssemblyEditor } from '@/components/AssemblyEditor';
 import { HazardPanel } from '@/components/HazardPanel';
@@ -13,7 +14,7 @@ import { BackendStatus } from '@/components/BackendStatus';
 import { ConfigPanel } from '@/components/ConfigPanel';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Code2, Cpu, Activity, AlertTriangle, Settings2, Info, Zap, Layers, ArrowRight } from 'lucide-react';
+import { Code2, Cpu, Activity, AlertTriangle, Settings2, Info, Zap, Layers, ArrowRight, BarChart3 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const RiscVLogo = () => (
@@ -39,7 +40,8 @@ const Index = () => {
     step, 
     reset, 
     run, 
-    pause, 
+    pause,
+    backward,
     loadProgram, 
     useBackend, 
     setUseBackend,
@@ -52,42 +54,43 @@ const Index = () => {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background grid-pattern">
-        <div className="max-w-[1800px] mx-auto p-2 sm:p-4 space-y-3 sm:space-y-4">
-          <div className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10 rounded-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/50 to-card rounded-2xl" />
+        <div className="max-w-[2000px] mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Enhanced Header */}
+          <div className="relative overflow-hidden rounded-2xl shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/60 to-card/90" />
             
-            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-6 sm:p-8">
+            <div className="relative bg-card/90 backdrop-blur-md border-2 border-primary/30 rounded-2xl p-6 sm:p-8 shadow-xl">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-6">
                   <RiscVLogo />
                   
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h1 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent drop-shadow-lg">
                         RISC-V Pipeline Simulator
                       </h1>
-                      <div className="hidden sm:flex items-center gap-1 px-3 py-1 bg-primary/20 rounded-full border border-primary/30">
-                        <Layers className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-semibold text-primary">5-Stage</span>
+                      <div className="flex items-center gap-1 px-4 py-1.5 bg-primary/20 rounded-full border border-primary/40 shadow-lg">
+                        <Layers className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-bold text-primary">5-Stage Pipeline</span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-accent" />
-                        <span>Educational CPU Architecture Tool</span>
+                        <Zap className="w-5 h-5 text-accent" />
+                        <span className="font-medium">Educational CPU Architecture Simulator</span>
                       </div>
-                      <div className="hidden sm:flex items-center gap-1">
-                        <span>IF</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>ID</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>EX</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>MEM</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>WB</span>
+                      <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg border border-border/50">
+                        <span className="font-semibold">IF</span>
+                        <ArrowRight className="w-4 h-4 text-accent" />
+                        <span className="font-semibold">ID</span>
+                        <ArrowRight className="w-4 h-4 text-accent" />
+                        <span className="font-semibold">EX</span>
+                        <ArrowRight className="w-4 h-4 text-accent" />
+                        <span className="font-semibold">MEM</span>
+                        <ArrowRight className="w-4 h-4 text-accent" />
+                        <span className="font-semibold">WB</span>
                       </div>
                     </div>
                   </div>
@@ -96,30 +99,32 @@ const Index = () => {
                 <div className="flex items-center gap-4">
                   <BackendStatus />
                   
-                  <div className="hidden lg:block text-right">
-                    <div className="text-sm font-medium text-foreground">
-                      Cycle <span className="font-mono text-primary">{state.cycle}</span>
+                  <div className="hidden lg:flex flex-col gap-2 p-4 bg-secondary/50 rounded-xl border border-border/50 shadow-lg">
+                    <div className="text-sm font-semibold text-foreground">
+                      Cycle <span className="font-mono text-xl text-primary ml-2">{state.cycle}</span>
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
-                      PC: 0x{state.pc.toString(16).padStart(8, '0').toUpperCase()}
+                      PC: <span className="text-foreground font-semibold">0x{state.pc.toString(16).padStart(8, '0').toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="absolute top-4 right-4 w-32 h-32 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-3xl" />
-              <div className="absolute bottom-4 left-4 w-24 h-24 bg-gradient-to-tr from-accent/10 to-primary/10 rounded-full blur-2xl" />
+              <div className="absolute top-4 right-4 w-40 h-40 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-3xl animate-pulse-slow" />
+              <div className="absolute bottom-4 left-4 w-32 h-32 bg-gradient-to-tr from-accent/20 to-primary/20 rounded-full blur-3xl animate-pulse-slow" />
             </div>
           </div>
 
-          <Alert className="bg-card/50 border-primary/30">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              <strong>How to use:</strong> Write RISC-V assembly in the editor → Click "Assemble & Load" → Use controls to step through execution.
-              The pipeline visualization shows instruction flow through IF→ID→EX→MEM→WB stages.
+          {/* Info Alert */}
+          <Alert className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/40 shadow-lg">
+            <Info className="h-5 w-5 text-primary" />
+            <AlertDescription className="text-sm font-medium">
+              <strong className="text-primary">Quick Start:</strong> Write RISC-V assembly in the editor → Click "Assemble & Load" → Use control buttons to step through execution.
+              Watch instructions flow through the 5-stage pipeline (IF→ID→EX→MEM→WB).
             </AlertDescription>
           </Alert>
 
+          {/* Config Panel */}
           {Object.keys(configOptions.isas).length > 0 && (
             <ConfigPanel
               currentIsa={currentIsa}
@@ -131,71 +136,105 @@ const Index = () => {
             />
           )}
 
-          <ControlPanel
-            cycle={state.cycle}
-            pc={state.pc}
-            running={state.running}
-            halted={state.halted}
-            onStep={step}
-            onRun={run}
-            onPause={pause}
-            onReset={reset}
-          />
+          {/* Control Panel */}
+          <div className="bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm rounded-xl border-2 border-primary/20 shadow-xl">
+            <ControlPanel
+              cycle={state.cycle}
+              pc={state.pc}
+              running={state.running}
+              halted={state.halted}
+              onStep={step}
+              onBackward={backward}
+              onRun={run}
+              onPause={pause}
+              onReset={reset}
+            />
+          </div>
 
-          <PipelineVisualization state={state} />
+          {/* Pipeline Visualization - Featured Section */}
+          <div className="bg-gradient-to-br from-card via-card/95 to-card/90 rounded-xl border-2 border-accent/30 shadow-2xl p-1">
+            <PipelineVisualization state={state} />
+          </div>
 
+          {/* Mobile/Tablet Layout - Enhanced Tabs */}
           <div className="lg:hidden">
             <Tabs defaultValue="code" className="w-full">
-              <TabsList className="w-full grid grid-cols-5 h-auto">
-                <TabsTrigger value="code" className="flex flex-col gap-1 py-2">
-                  <Code2 className="w-4 h-4" />
-                  <span className="text-[10px]">Code</span>
+              <TabsList className="w-full grid grid-cols-6 h-auto bg-card/80 border-2 border-primary/20 rounded-xl p-1 shadow-lg">
+                <TabsTrigger value="code" className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg">
+                  <Code2 className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">Code</span>
                 </TabsTrigger>
-                <TabsTrigger value="cpu" className="flex flex-col gap-1 py-2">
-                  <Cpu className="w-4 h-4" />
-                  <span className="text-[10px]">CPU</span>
+                <TabsTrigger value="cpu" className="flex flex-col gap-1 py-3 data-[state=active]:bg-warning/20 data-[state=active]:text-warning rounded-lg">
+                  <Cpu className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">CPU</span>
                 </TabsTrigger>
-                <TabsTrigger value="hazards" className="flex flex-col gap-1 py-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-[10px]">Hazards</span>
+                <TabsTrigger value="hazards" className="flex flex-col gap-1 py-3 data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive rounded-lg">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">Hazards</span>
                 </TabsTrigger>
-                <TabsTrigger value="registers" className="flex flex-col gap-1 py-2">
-                  <Activity className="w-4 h-4" />
-                  <span className="text-[10px]">Regs</span>
+                <TabsTrigger value="registers" className="flex flex-col gap-1 py-3 data-[state=active]:bg-success/20 data-[state=active]:text-success rounded-lg">
+                  <Activity className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">Regs</span>
                 </TabsTrigger>
-                <TabsTrigger value="timeline" className="flex flex-col gap-1 py-2">
-                  <Settings2 className="w-4 h-4" />
-                  <span className="text-[10px]">Timeline</span>
+                <TabsTrigger value="timeline" className="flex flex-col gap-1 py-3 data-[state=active]:bg-accent/20 data-[state=active]:text-accent rounded-lg">
+                  <Settings2 className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">Timeline</span>
+                </TabsTrigger>
+                <TabsTrigger value="stats" className="flex flex-col gap-1 py-3 data-[state=active]:bg-accent/20 data-[state=active]:text-accent rounded-lg">
+                  <BarChart3 className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold">Stats</span>
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="code" className="mt-3 space-y-3">
-                <AssemblyEditor onLoad={loadProgram} />
+              <TabsContent value="code" className="mt-4 space-y-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                  <AssemblyEditor onLoad={loadProgram} />
+                </div>
               </TabsContent>
               
-              <TabsContent value="cpu" className="mt-3 space-y-3">
-                <ALUPanel alu={state.alu} />
-                <ControlSignalsPanel signals={state.ID_EX.control_signals} />
+              <TabsContent value="cpu" className="mt-4 space-y-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-warning/20 shadow-xl p-1">
+                  <ALUPanel alu={state.alu} />
+                </div>
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                  <ControlSignalsPanel signals={state.ID_EX.control_signals} />
+                </div>
               </TabsContent>
               
-              <TabsContent value="hazards" className="mt-3">
-                <HazardPanel state={state} />
+              <TabsContent value="hazards" className="mt-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-destructive/20 shadow-xl p-3">
+                  <HazardPanel state={state} />
+                </div>
               </TabsContent>
               
-              <TabsContent value="registers" className="mt-3">
-                <RegisterFile
-                  registers={state.registers}
-                  updatedRegister={state.updatedRegister}
-                />
+              <TabsContent value="registers" className="mt-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-success/20 shadow-xl p-3">
+                  <RegisterFile
+                    registers={state.registers}
+                    updatedRegister={state.updatedRegister}
+                  />
+                </div>
               </TabsContent>
               
-              <TabsContent value="timeline" className="mt-3 space-y-3">
-                <ExecutionLog state={state} />
-                <ExecutionTimeline state={state} />
-                <InstructionMemory
-                  instructions={state.instructionMemory}
-                  currentPC={state.pc}
-                />
+              <TabsContent value="timeline" className="mt-4 space-y-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-accent/20 shadow-xl p-1">
+                  <ExecutionLog state={state} />
+                </div>
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-accent/20 shadow-xl p-1">
+                  <ExecutionTimeline state={state} />
+                </div>
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                  <InstructionMemory
+                    instructions={state.instructionMemory}
+                    currentPC={state.pc}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="stats" className="mt-4 space-y-4">
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-accent/20 shadow-xl p-1">
+                  <ExecutionStats state={state} />
+                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -228,8 +267,16 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <ExecutionTimeline state={state} />
+            <div className="grid grid-cols-12 gap-4 mb-4">
+              <div className="col-span-4">
+                <ExecutionStats state={state} />
+              </div>
+              <div className="col-span-8">
+                <ExecutionTimeline state={state} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
               <InstructionMemory
                 instructions={state.instructionMemory}
                 currentPC={state.pc}
@@ -237,19 +284,20 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="text-center text-[10px] sm:text-xs text-muted-foreground pt-3 sm:pt-4 border-t border-border/30">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="font-semibold">Pipeline Stages</p>
-                <p>IF → ID → EX → MEM → WB</p>
+          {/* Enhanced Footer */}
+          <div className="mt-8 pt-6 border-t-2 border-primary/20">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+              <div className="p-4 bg-card/50 rounded-xl border border-border/50 shadow-lg">
+                <p className="font-bold text-primary mb-2 text-sm">Pipeline Stages</p>
+                <p className="text-xs text-muted-foreground">IF → ID → EX → MEM → WB</p>
               </div>
-              <div>
-                <p className="font-semibold">Features</p>
-                <p>Hazard Detection • Forwarding • Stalls</p>
+              <div className="p-4 bg-card/50 rounded-xl border border-border/50 shadow-lg">
+                <p className="font-bold text-accent mb-2 text-sm">Features</p>
+                <p className="text-xs text-muted-foreground">Hazard Detection • Forwarding • Stalls</p>
               </div>
-              <div>
-                <p className="font-semibold">Mode</p>
-                <p>Python Backend Only</p>
+              <div className="p-4 bg-card/50 rounded-xl border border-border/50 shadow-lg">
+                <p className="font-bold text-success mb-2 text-sm">Architecture</p>
+                <p className="text-xs text-muted-foreground">RISC-V 32-bit Pipeline Processor</p>
               </div>
             </div>
           </div>
