@@ -12,10 +12,33 @@ class Instruction:
     
     def to_assembly(self):
         """Convert instruction to assembly string"""
-        if self.name == "add" or self.name == "sub":
+        # R-type instructions (register-register operations)
+        r_type = ["add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu"]
+        if self.name in r_type:
             return f"{self.name} x{self.rd}, x{self.rs1}, x{self.rs2}"
-        elif self.name == "addi":
+        
+        # I-type instructions (immediate operations)
+        i_type = ["addi", "andi", "ori", "xori", "slti", "sltiu"]
+        if self.name in i_type:
             return f"{self.name} x{self.rd}, x{self.rs1}, {self.imm}"
-        elif self.name == "nop":
+        
+        # Shift immediate instructions
+        shift_imm = ["slli", "srli", "srai"]
+        if self.name in shift_imm:
+            return f"{self.name} x{self.rd}, x{self.rs1}, {self.imm}"
+        
+        # Load instructions
+        load_type = ["lw", "lb", "lh"]
+        if self.name in load_type:
+            return f"{self.name} x{self.rd}, {self.imm}(x{self.rs1})"
+        
+        # Store instructions
+        store_type = ["sw", "sb", "sh"]
+        if self.name in store_type:
+            return f"{self.name} x{self.rs2}, {self.imm}(x{self.rs1})"
+        
+        # Special cases
+        if self.name == "nop":
             return "nop"
+        
         return self.name

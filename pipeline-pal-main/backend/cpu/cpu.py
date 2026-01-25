@@ -58,6 +58,9 @@ class CPU:
             "WB": 0
         }
         self.clock_frequency = 1e9  # 1 GHz in Hz
+        
+        # Register trace per cycle (like temp_repo)
+        self.reg_trace = {}  # {cycle: {register_name: value, ...}}
     
     def load_program(self, instructions: List[int]):
         """Load machine code program into instruction memory"""
@@ -99,6 +102,9 @@ class CPU:
             "MEM": 0,
             "WB": 0
         }
+        
+        # Reset register trace
+        self.reg_trace = {}
     
     def step(self):
         """Execute one clock cycle"""
@@ -110,7 +116,7 @@ class CPU:
         
         # Debug logging with detailed pipeline stage information
         print(f"\n{'='*80}")
-        print(f"🔄 CYCLE {self.cycle}")
+        print(f"[CYCLE {self.cycle}]")
         print(f"{'='*80}")
         print(f"PC: 0x{self.pc:08X}")
         
@@ -123,36 +129,49 @@ class CPU:
         self._memory_stage()
         self._execute_stage()
         
+        # Detect hazards AFTER executing (so forwarding values are fresh)
+        self._detect_hazards()
+        
         if self.stall:
             # Insert bubble in ID/EX
             self._insert_bubble()
-            print("\n⚠️  PIPELINE STALL: Bubble inserted in ID/EX stage")
+            print("\n[STALL] PIPELINE STALL: Bubble inserted in ID/EX stage")
         else:
             self._decode_stage()
             self._fetch_stage()
         
-        # Track statistics for active stages
-        if self.if_id.valid:
+        # Track statistics for active stages (only count non-NOP instructions)
+        # NOP is 0x00000013 - don't count bubbles or empty stages
+        if self.if_id.valid and self.if_id.instruction != 0x00000013:
             self.stage_cycles["IF"] += 1
-        if self.id_ex.valid:
+        if self.id_ex.valid and self.id_ex.instruction != 0x00000013:
             self.stage_cycles["ID"] += 1
-        if self.ex_mem.valid:
+        if self.ex_mem.valid and self.ex_mem.instruction != 0x00000013:
             self.stage_cycles["EX"] += 1
-        if self.mem_wb.valid:
+        if self.mem_wb.valid and self.mem_wb.instruction != 0x00000013:
             self.stage_cycles["MEM"] += 1
-        # WB is counted if mem_wb has valid instruction that commits a result
-        if self.mem_wb.valid and hasattr(self.mem_wb, 'reg_write') and self.mem_wb.reg_write:
+        # WB is counted if mem_wb has valid non-NOP instruction with writeback
+        if self.mem_wb.valid and self.mem_wb.instruction != 0x00000013 and hasattr(self.mem_wb, 'reg_write') and self.mem_wb.reg_write:
             self.stage_cycles["WB"] += 1
         
         # Print detailed stage information
-        print(f"\n📋 PIPELINE STAGES:")
-        print(f"  IF/ID:  {self.if_id.assembly if self.if_id.valid else 'empty'}")
-        print(f"  ID/EX:  {self.id_ex.assembly if self.id_ex.valid else 'empty'}")
-        print(f"  EX/MEM: {self.ex_mem.assembly if self.ex_mem.valid else 'empty'}")
-        print(f"  MEM/WB: {self.mem_wb.assembly if self.mem_wb.valid else 'empty'}")
+        print(f"\n[STAGES] PIPELINE STAGES:")
+        if_id_text = f"0x{self.if_id.instruction:08X}" if self.if_id.valid else "empty"
+        id_ex_text = self.id_ex.assembly if self.id_ex.valid else "empty"
+        ex_mem_text = self.ex_mem.assembly if self.ex_mem.valid else "empty"
+        mem_wb_text = self.mem_wb.assembly if self.mem_wb.valid else "empty"
+        print(f"  IF/ID:  {if_id_text}")
+        print(f"  ID/EX:  {id_ex_text}")
+        print(f"  EX/MEM: {ex_mem_text}")
+        print(f"  MEM/WB: {mem_wb_text}")
+        
+        # Capture register state AFTER writeback (like temp_repo)
+        self.reg_trace[self.cycle] = {
+            f"x{i}": self.registers.read(i) for i in range(32)
+        }
         
         # Print register values
-        print(f"\n📊 REGISTER STATE:")
+        print(f"\n[REGS] REGISTER STATE:")
         print(f"  x1={self.registers.read(1):<10} x2={self.registers.read(2):<10} x3={self.registers.read(3):<10}")
     
     def _detect_hazards(self):
@@ -181,11 +200,11 @@ class CPU:
             # No more instructions
             self.if_id = IF_ID_Register(valid=False)
             self.halted = True
-            print("\n🛑 IF STAGE: No more instructions, CPU halted")
+            print("\n[HALT] IF STAGE: No more instructions, CPU halted")
             return
         
         instruction = self.instr_mem.fetch(self.pc)
-        print(f"\n🔵 IF STAGE: Fetched instruction 0x{instruction:08X} from PC 0x{self.pc:08X}")
+        print(f"\n[IF] IF STAGE: Fetched instruction 0x{instruction:08X} from PC 0x{self.pc:08X}")
         
         self.if_id = IF_ID_Register(
             instruction=instruction,
@@ -207,7 +226,7 @@ class CPU:
         decoded = decode_instruction(self.if_id.instruction)
         signals = generate_control_signals(decoded.opcode, decoded.funct3, decoded.funct7)
         
-        print(f"\n🟢 ID STAGE: Decoding '{decoded.assembly}'")
+        print(f"\n[ID] ID STAGE: Decoding '{decoded.assembly}'")
         print(f"   rd=x{decoded.rd}, rs1=x{decoded.rs1}({self.registers.read(decoded.rs1)}), rs2=x{decoded.rs2}({self.registers.read(decoded.rs2)})")
         print(f"   imm={decoded.imm}, ALU_OP={signals.alu_op}")
         
@@ -256,7 +275,7 @@ class CPU:
         # Select ALU operand B
         op_b = self.id_ex.immediate if self.id_ex.alu_src else op_b_reg
         
-        print(f"\n🟡 EX STAGE: Executing '{self.id_ex.assembly}'")
+        print(f"\n[EX] EX STAGE: Executing '{self.id_ex.assembly}'")
         print(f"   ALU: {op_a}{forward_a_msg} {self.id_ex.alu_op} {op_b}{forward_b_msg}")
         
         # Execute ALU operation
@@ -327,7 +346,7 @@ class CPU:
         
         mem_data = None
         
-        print(f"\n🔵 MEM STAGE: Processing '{self.ex_mem.assembly}'")
+        print(f"\n[MEM] MEM STAGE: Processing '{self.ex_mem.assembly}'")
         
         if self.ex_mem.mem_read:
             # Load instruction
@@ -358,17 +377,17 @@ class CPU:
         """WB Stage: Write back to register file"""
         if not self.mem_wb.valid or not self.mem_wb.reg_write:
             if self.mem_wb.valid:
-                print(f"\n🟣 WB STAGE: Processing '{self.mem_wb.assembly}' (no writeback)")
+                print(f"\n[WB] WB STAGE: Processing '{self.mem_wb.assembly}' (no writeback)")
             return
         
         if self.mem_wb.rd == 0:
-            print(f"\n🟣 WB STAGE: Processing '{self.mem_wb.assembly}' (writing to x0, ignored)")
+            print(f"\n[WB] WB STAGE: Processing '{self.mem_wb.assembly}' (writing to x0, ignored)")
             return
         
         # Select write data
         write_data = self.mem_wb.mem_data if self.mem_wb.mem_to_reg else self.mem_wb.alu_result
         
-        print(f"\n🟣 WB STAGE: Processing '{self.mem_wb.assembly}'")
+        print(f"\n[WB] WB STAGE: Processing '{self.mem_wb.assembly}'")
         print(f"   Writing x{self.mem_wb.rd} = {write_data}")
         
         # Write to register file
@@ -403,6 +422,7 @@ class CPU:
             "alu": self.alu_state,
             "hazards": self.hazard_state.to_dict(),
             "instructionMemory": self.instr_mem.get_all(),
+            "registerTrace": self.reg_trace,  # Add register trace
             "statistics": {
                 "total_cycles": self.cycle,
                 "execution_time_seconds": execution_time,

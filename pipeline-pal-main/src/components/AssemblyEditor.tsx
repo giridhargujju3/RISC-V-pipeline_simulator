@@ -4,6 +4,7 @@ import { Instruction } from '@/types/cpu';
 import { Code2, Play, AlertCircle, CheckCircle, ChevronDown, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface AssemblyEditorProps {
   onLoad: (instructions: Instruction[]) => void;
@@ -14,6 +15,7 @@ export function AssemblyEditor({ onLoad }: AssemblyEditorProps) {
   const [errors, setErrors] = useState<string[]>([]);
   const [assembled, setAssembled] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const { toast } = useToast();
 
   const handleAssemble = () => {
     try {
@@ -23,12 +25,22 @@ export function AssemblyEditor({ onLoad }: AssemblyEditorProps) {
       
       if (result.success && result.instructions.length > 0) {
         onLoad(result.instructions);
+        toast({
+          title: "✅ Assembly Successful",
+          description: `Assembled ${result.instructions.length} instructions`,
+        });
       } else if (result.instructions.length === 0) {
         setErrors(["No valid instructions found. Please check your assembly code."]);
       }
     } catch (error) {
-      setErrors([`Assembly failed: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      setErrors([`Assembly failed: ${msg}`]);
       setAssembled(false);
+      toast({
+        title: "❌ Assembly Failed",
+        description: msg,
+        variant: "destructive",
+      });
     }
   };
 

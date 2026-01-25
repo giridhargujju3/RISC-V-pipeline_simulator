@@ -7,6 +7,7 @@ from typing import List, Optional, Dict
 from config import Config
 from program.loader import Program
 from utils.stats import Stats
+from compiler import get_compiler
 import importlib
 
 app = FastAPI(
@@ -54,10 +55,10 @@ def load_isa(isa_name: str):
     try:
         isa_module = importlib.import_module(f"isa.{isa_name}.isa")
         isa = isa_module.ISA()
-        print(f"✅ Loaded ISA: {isa_name} (XLEN={isa.XLEN})")
+        print(f"[OK] Loaded ISA: {isa_name} (XLEN={isa.XLEN})")
         return True
     except Exception as e:
-        print(f"❌ Failed to load ISA {isa_name}: {e}")
+        print(f"[ERROR] Failed to load ISA {isa_name}: {e}")
         return False
 
 
@@ -67,7 +68,7 @@ def load_core_class(core_name: str):
         core_module = importlib.import_module(f"microarch.{core_name}.core")
         return core_module.Core
     except Exception as e:
-        print(f"❌ Failed to load core {core_name}: {e}")
+        print(f"[ERROR] Failed to load core {core_name}: {e}")
         return None
 
 
@@ -213,7 +214,8 @@ def get_state_dict():
 
 class LoadProgramRequest(BaseModel):
     """Request body for loading a program"""
-    instructions: List[int]
+    instructions: Optional[List[int]] = None  # Direct instruction list
+    assembly: Optional[str] = None            # Assembly code to compile
 
 
 class ConfigRequest(BaseModel):
@@ -350,16 +352,40 @@ async def reset():
 @app.post("/load")
 async def load_program(request: LoadProgramRequest):
     """Load a new program into instruction memory"""
-    if not request.instructions:
-        raise HTTPException(status_code=400, detail="No instructions provided")
+    
+    # Handle assembly code compilation
+    if request.assembly:
+        print(f"\n{'='*60}")
+        print(f"ASSEMBLY COMPILATION REQUEST")
+        print(f"{'='*60}")
+        
+        try:
+            compiler = get_compiler()
+            instructions = compiler.compile_to_instructions(request.assembly)
+            
+            print(f"[OK] Compilation successful!")
+            print(f"Generated {len(instructions)} instructions")
+            
+        except Exception as e:
+            print(f"[ERROR] Compilation failed: {str(e)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Assembly compilation failed: {str(e)}"
+            )
+    
+    # Handle direct instruction list
+    elif request.instructions:
+        instructions = request.instructions
+    else:
+        raise HTTPException(status_code=400, detail="Either 'assembly' or 'instructions' must be provided")
     
     print(f"\n{'='*60}")
-    print(f"FRONTEND LOAD PROGRAM REQUEST")
+    print(f"PROGRAM LOAD REQUEST")
     print(f"{'='*60}")
-    print(f"Instructions to load: {len(request.instructions)}")
+    print(f"Instructions to load: {len(instructions)}")
     
     # Validate instructions (must be 32-bit integers)
-    for i, instr in enumerate(request.instructions):
+    for i, instr in enumerate(instructions):
         if not isinstance(instr, int) or instr < 0 or instr > 0xFFFFFFFF:
             raise HTTPException(
                 status_code=400, 
@@ -368,7 +394,7 @@ async def load_program(request: LoadProgramRequest):
     
     # Show instructions being loaded
     print(f"\nINSTRUCTION MEMORY:")
-    for i, instr_bits in enumerate(request.instructions):
+    for i, instr_bits in enumerate(instructions):
         addr = i * 4
         try:
             # Try to decode and show assembly
@@ -379,10 +405,10 @@ async def load_program(request: LoadProgramRequest):
             assembly = f"unknown (0x{instr_bits:08X})"
         print(f"  0x{addr:08X}: 0x{instr_bits:08X} -> {assembly}")
     
-    init_cpu(request.instructions)
+    init_cpu(instructions)
     
     print(f"\nPROGRAM LOADED SUCCESSFULLY")
-    print(f"  Total instructions: {len(request.instructions)}")
+    print(f"  Total instructions: {len(instructions)}")
     print(f"  Memory range: 0x00000000 - 0x{program.end:08X}")
     print(f"{'='*60}\n")
     
