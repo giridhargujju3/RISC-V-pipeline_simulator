@@ -29,7 +29,7 @@ class Core(CoreBase):
             bits = self.program.load_word(self.pc)
             instr = self.isa.decode(bits)
 
-            print(f"🔵 IF STAGE: Fetched instruction 0x{bits:08X} from PC 0x{self.pc:08X} -> {instr.to_assembly()}")
+            print(f"[IF] Fetched instruction 0x{bits:08X} from PC 0x{self.pc:08X} -> {instr.to_assembly()}")
 
             self.IF_ID.valid = True
             self.IF_ID.instr = instr
@@ -45,7 +45,7 @@ class Core(CoreBase):
         rs2_val = self.regs.read(instr.rs2) if instr.rs2 is not None else 0
         imm_val = instr.imm if instr.imm is not None else 0
         
-        print(f"🟢 ID STAGE: Decoding '{instr.to_assembly()}' (rd=x{instr.rd}, rs1=x{instr.rs1}({rs1_val}), rs2=x{instr.rs2}({rs2_val}))")
+        print(f"[ID] Decoding '{instr.to_assembly()}' (rd=x{instr.rd}, rs1=x{instr.rs1}({rs1_val}), rs2=x{instr.rs2}({rs2_val}))")
 
         self.ID_EX.valid = True
         self.ID_EX.instr = instr
@@ -86,7 +86,7 @@ class Core(CoreBase):
         result = self._execute_instruction(instr, op_a, op_b, imm)
         
         fwd_info = (forward_a_msg + forward_b_msg) if (forward_a_msg or forward_b_msg) else ""
-        print(f"🟡 EX STAGE: Executing '{instr.to_assembly()}' -> result = {result}{fwd_info}")
+        print(f"[EX] Executing '{instr.to_assembly()}' -> result = {result}{fwd_info}")
 
         self.EX_MEM.valid = True
         self.EX_MEM.instr = instr
@@ -98,7 +98,7 @@ class Core(CoreBase):
             return
 
         instr = self.EX_MEM.instr
-        print(f"🔵 MEM STAGE: Processing '{instr.to_assembly()}' (no memory operation)")
+        print(f"[MEM] Processing '{instr.to_assembly()}' (no memory operation)")
 
         self.MEM_WB.valid = True
         self.MEM_WB.instr = instr
@@ -112,9 +112,9 @@ class Core(CoreBase):
         instr = self.MEM_WB.instr
         if instr.writes_rd:
             self.regs.write(instr.rd, self.MEM_WB.result)
-            print(f"🟣 WB STAGE: Writing x{instr.rd} = {self.MEM_WB.result} ('{instr.to_assembly()}')")
+            print(f"[WB] Writing x{instr.rd} = {self.MEM_WB.result} ('{instr.to_assembly()}')")
         else:
-            print(f"🟣 WB STAGE: Processing '{instr.to_assembly()}' (no writeback)")
+            print(f"[WB] Processing '{instr.to_assembly()}' (no writeback)")
 
         self.MEM_WB.valid = False
 
@@ -124,10 +124,10 @@ class Core(CoreBase):
 
     def tick(self):
         print(f"\n{'='*80}")
-        print(f"🔄 CYCLE {self.cycle + 1}")
+        print(f"CYCLE {self.cycle + 1}")
         print(f"{'='*80}")
         print(f"PC: 0x{self.pc:08X}")
-        print(f"Status: {'⏸ Halted' if self.done else '▶ Running'}")
+        print(f"Status: {'Halted' if self.done else 'Running'}")
 
         ex_mem_fwd = {
             'valid': self.EX_MEM.valid,
@@ -158,7 +158,7 @@ class Core(CoreBase):
         }
 
         # Print pipeline state
-        print(f"\n📋 Pipeline Stages")
+        print(f"\nPipeline Stages")
         print(f"IF/ID:")
         print(f"{self.IF_ID.instr.to_assembly() if self.IF_ID.valid and self.IF_ID.instr else 'empty'}")
         print(f"ID/EX:")
@@ -169,7 +169,7 @@ class Core(CoreBase):
         print(f"{self.MEM_WB.instr.to_assembly() if self.MEM_WB.valid and self.MEM_WB.instr else 'empty'}")
 
         # Print register state
-        print(f"📊 Register State")
+        print(f"Register State")
         non_zero = [(i, self.regs.read(i)) for i in range(1, 11) if self.regs.read(i) != 0]
         if non_zero:
             reg_str = ", ".join([f"x{i}={val}" for i, val in non_zero])
