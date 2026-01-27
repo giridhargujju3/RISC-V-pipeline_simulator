@@ -9,6 +9,7 @@ export const API_CONFIG = {
 
 export interface APIPipelineRegister {
   instruction: string;
+  assembly?: string;
   pc: number;
   valid: boolean;
   rd?: number;
@@ -18,6 +19,16 @@ export interface APIPipelineRegister {
   rs2_value?: number;
   immediate?: number;
   alu_result?: number;
+  control_signals?: {
+    regWrite: boolean;
+    memRead: boolean;
+    memWrite: boolean;
+    memToReg: boolean;
+    aluSrc: boolean;
+    branch: boolean;
+    jump: boolean;
+    aluOp: string;
+  };
 }
 
 export interface APIState {
@@ -173,7 +184,7 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
     dataMemory: new Map(),
     IF_ID: {
       instruction: apiState.IF_ID?.instruction || "NOP",
-      assembly: apiState.IF_ID?.instruction || "NOP",
+      assembly: apiState.IF_ID?.assembly || apiState.IF_ID?.instruction || "NOP",
       pc: apiState.IF_ID?.pc || 0,
       valid: apiState.IF_ID?.valid || false,
       rd: apiState.IF_ID?.rd,
@@ -182,7 +193,7 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
     },
     ID_EX: {
       instruction: apiState.ID_EX?.instruction || "NOP",
-      assembly: apiState.ID_EX?.instruction || "NOP",
+      assembly: apiState.ID_EX?.assembly || apiState.ID_EX?.instruction || "NOP",
       pc: apiState.ID_EX?.pc || 0,
       valid: apiState.ID_EX?.valid || false,
       rd: apiState.ID_EX?.rd,
@@ -191,30 +202,32 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       rs1_value: apiState.ID_EX?.rs1_value,
       rs2_value: apiState.ID_EX?.rs2_value,
       immediate: apiState.ID_EX?.immediate,
-      control_signals: {
-        regWrite: true,
+      control_signals: apiState.ID_EX?.control_signals || {
+        regWrite: false,
         memRead: false,
         memWrite: false,
         memToReg: false,
         aluSrc: false,
         branch: false,
         jump: false,
-        aluOp: "ADD"
+        aluOp: "NOP"
       }
     },
     EX_MEM: {
       instruction: apiState.EX_MEM?.instruction || "NOP",
-      assembly: apiState.EX_MEM?.instruction || "NOP",
+      assembly: apiState.EX_MEM?.assembly || apiState.EX_MEM?.instruction || "NOP",
       pc: apiState.EX_MEM?.pc || 0,
       valid: apiState.EX_MEM?.valid || false,
       rd: apiState.EX_MEM?.rd,
+      rs1: apiState.EX_MEM?.rs1,
+      rs2: apiState.EX_MEM?.rs2,
       alu_result: apiState.EX_MEM?.alu_result,
       mem_read: false,
       mem_write: false,
     },
     MEM_WB: {
       instruction: apiState.MEM_WB?.instruction || "NOP",
-      assembly: apiState.MEM_WB?.instruction || "NOP",
+      assembly: apiState.MEM_WB?.assembly || apiState.MEM_WB?.instruction || "NOP",
       pc: apiState.MEM_WB?.pc || 0,
       valid: apiState.MEM_WB?.valid || false,
       rd: apiState.MEM_WB?.rd,

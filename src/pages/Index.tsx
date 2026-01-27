@@ -198,7 +198,7 @@ const Index = () => {
               
               <TabsContent value="cpu" className="mt-4 space-y-4">
                 <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-warning/20 shadow-xl p-1">
-                  <ALUPanel alu={state.alu} />
+                  <ALUPanel alu={state.alu} idEx={state.ID_EX} exMem={state.EX_MEM} hazards={state.hazards} />
                 </div>
                 <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
                   <ControlSignalsPanel signals={state.ID_EX.control_signals} />
@@ -250,7 +250,7 @@ const Index = () => {
               </div>
               
               <div className="col-span-6 grid grid-cols-2 gap-4">
-                <ALUPanel alu={state.alu} />
+                <ALUPanel alu={state.alu} idEx={state.ID_EX} exMem={state.EX_MEM} hazards={state.hazards} />
                 <ControlSignalsPanel signals={state.ID_EX.control_signals} />
               </div>
               

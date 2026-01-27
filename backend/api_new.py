@@ -186,11 +186,11 @@ def get_state_dict():
         "EX_MEM": instr_to_dict(core.EX_MEM),
         "MEM_WB": instr_to_dict(core.MEM_WB),
         "alu": {
-            "operandA": 0,
-            "operandB": 0,
-            "operation": "ADD" if core.ID_EX.valid else "NOP",
+            "operandA": core.EX_MEM.alu_op_a if core.EX_MEM.valid and hasattr(core.EX_MEM, 'alu_op_a') else 0,
+            "operandB": core.EX_MEM.alu_op_b if core.EX_MEM.valid and hasattr(core.EX_MEM, 'alu_op_b') else 0,
+            "operation": core.EX_MEM.alu_operation if core.EX_MEM.valid and hasattr(core.EX_MEM, 'alu_operation') else "NOP",
             "result": core.EX_MEM.result if core.EX_MEM.valid and hasattr(core.EX_MEM, 'result') else 0,
-            "zero": False
+            "zero": (core.EX_MEM.result == 0) if core.EX_MEM.valid and hasattr(core.EX_MEM, 'result') and core.EX_MEM.result is not None else False
         },
         "hazards": {
             "stall": False,

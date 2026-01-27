@@ -5,6 +5,8 @@ from microarch.inorder_5stage.state import PipeReg
 class Core(CoreBase):
     SUPPORTED_ISA = ["rv32i"]
     XLEN = 32
+    
+    ALU_OPERATIONS = {}
 
     def __init__(self, config, stats, program, isa, regs):
         super().__init__(config, stats, program, isa, regs)
@@ -19,6 +21,40 @@ class Core(CoreBase):
 
         # Register trace per cycle
         self.reg_trace = {}
+        
+        self._initialize_alu_operations()
+
+    # -------------------------
+    # ALU Operation Registry
+    # -------------------------
+    
+    def _initialize_alu_operations(self):
+        self.ALU_OPERATIONS = {
+            "nop": lambda a, b, i: 0,
+            "add": lambda a, b, i: (a + b) & 0xFFFFFFFF,
+            "sub": lambda a, b, i: (a - b) & 0xFFFFFFFF,
+            "addi": lambda a, b, i: (a + self._sign_extend(i, 32)) & 0xFFFFFFFF,
+            "and": lambda a, b, i: (a & b) & 0xFFFFFFFF,
+            "andi": lambda a, b, i: (a & i) & 0xFFFFFFFF,
+            "or": lambda a, b, i: (a | b) & 0xFFFFFFFF,
+            "ori": lambda a, b, i: (a | i) & 0xFFFFFFFF,
+            "xor": lambda a, b, i: (a ^ b) & 0xFFFFFFFF,
+            "xori": lambda a, b, i: (a ^ i) & 0xFFFFFFFF,
+            "sll": lambda a, b, i: (a << (b & 0x1F)) & 0xFFFFFFFF,
+            "slli": lambda a, b, i: (a << (i & 0x1F)) & 0xFFFFFFFF,
+            "srl": lambda a, b, i: (a >> (b & 0x1F)) & 0xFFFFFFFF,
+            "srli": lambda a, b, i: (a >> (i & 0x1F)) & 0xFFFFFFFF,
+            "sra": lambda a, b, i: self._arithmetic_shift_right(a, b & 0x1F),
+            "srai": lambda a, b, i: self._arithmetic_shift_right(a, i & 0x1F),
+            "slt": lambda a, b, i: 1 if self._to_signed(a) < self._to_signed(b) else 0,
+            "slti": lambda a, b, i: 1 if self._to_signed(a) < self._to_signed(i) else 0,
+            "sltu": lambda a, b, i: 1 if a < b else 0,
+            "sltiu": lambda a, b, i: 1 if a < i else 0,
+        }
+    
+    def register_alu_operation(self, name, operation_func):
+        self.ALU_OPERATIONS[name] = operation_func
+        print(f"[CORE] Registered custom ALU operation: {name}")
 
     # -------------------------
     # Pipeline stages
@@ -91,6 +127,9 @@ class Core(CoreBase):
         self.EX_MEM.valid = True
         self.EX_MEM.instr = instr
         self.EX_MEM.result = result
+        self.EX_MEM.alu_op_a = op_a
+        self.EX_MEM.alu_op_b = op_b if not self._is_immediate_instruction(instr) else imm
+        self.EX_MEM.alu_operation = instr.name.upper()
         self.ID_EX.valid = False
 
     def memory(self):
@@ -207,56 +246,14 @@ class Core(CoreBase):
         op_b = op_b & 0xFFFFFFFF
         imm = imm & 0xFFFFFFFF
         
-        if instr.name == "nop":
-            return 0
-        elif instr.name == "add":
-            return (op_a + op_b) & 0xFFFFFFFF
-        elif instr.name == "sub":
-            return (op_a - op_b) & 0xFFFFFFFF
-        elif instr.name == "addi":
-            return (op_a + self._sign_extend(imm, 32)) & 0xFFFFFFFF
-        elif instr.name == "and":
-            return (op_a & op_b) & 0xFFFFFFFF
-        elif instr.name == "andi":
-            return (op_a & imm) & 0xFFFFFFFF
-        elif instr.name == "or":
-            return (op_a | op_b) & 0xFFFFFFFF
-        elif instr.name == "ori":
-            return (op_a | imm) & 0xFFFFFFFF
-        elif instr.name == "xor":
-            return (op_a ^ op_b) & 0xFFFFFFFF
-        elif instr.name == "xori":
-            return (op_a ^ imm) & 0xFFFFFFFF
-        elif instr.name == "sll":
-            return (op_a << (op_b & 0x1F)) & 0xFFFFFFFF
-        elif instr.name == "slli":
-            return (op_a << (imm & 0x1F)) & 0xFFFFFFFF
-        elif instr.name == "srl":
-            return (op_a >> (op_b & 0x1F)) & 0xFFFFFFFF
-        elif instr.name == "srli":
-            return (op_a >> (imm & 0x1F)) & 0xFFFFFFFF
-        elif instr.name == "sra":
-            shift = op_b & 0x1F
-            if op_a & 0x80000000:
-                return ((op_a >> shift) | ((0xFFFFFFFF << (32 - shift)) & 0xFFFFFFFF)) & 0xFFFFFFFF
-            else:
-                return (op_a >> shift) & 0xFFFFFFFF
-        elif instr.name == "srai":
-            shift = imm & 0x1F
-            if op_a & 0x80000000:
-                return ((op_a >> shift) | ((0xFFFFFFFF << (32 - shift)) & 0xFFFFFFFF)) & 0xFFFFFFFF
-            else:
-                return (op_a >> shift) & 0xFFFFFFFF
-        elif instr.name == "slt":
-            return 1 if self._to_signed(op_a) < self._to_signed(op_b) else 0
-        elif instr.name == "slti":
-            return 1 if self._to_signed(op_a) < self._to_signed(imm) else 0
-        elif instr.name == "sltu":
-            return 1 if op_a < op_b else 0
-        elif instr.name == "sltiu":
-            return 1 if op_a < imm else 0
+        if instr.name in self.ALU_OPERATIONS:
+            return self.ALU_OPERATIONS[instr.name](op_a, op_b, imm)
         else:
-            raise RuntimeError(f"Unsupported instruction in execute: {instr.name}")
+            print(f"[WARNING] Unknown instruction '{instr.name}' - attempting ISA fallback execution")
+            try:
+                return self._execute_via_isa(instr, op_a, op_b, imm)
+            except Exception as e:
+                raise RuntimeError(f"Unsupported instruction in execute: {instr.name} - {e}")
     
     def _sign_extend(self, val, bits):
         if val & (1 << (bits - 1)):
@@ -267,3 +264,27 @@ class Core(CoreBase):
         if val & 0x80000000:
             return val - 0x100000000
         return val
+    
+    def _arithmetic_shift_right(self, val, shift):
+        if val & 0x80000000:
+            return ((val >> shift) | ((0xFFFFFFFF << (32 - shift)) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        else:
+            return (val >> shift) & 0xFFFFFFFF
+    
+    def _execute_via_isa(self, instr, op_a, op_b, imm):
+        temp_regs_state = {instr.rs1: op_a, instr.rs2: op_b}
+        
+        class TempRegs:
+            def __init__(self, state):
+                self.state = state
+            def read(self, reg):
+                return self.state.get(reg, 0)
+        
+        temp_regs = TempRegs(temp_regs_state)
+        
+        from isa.rv32i import semantics
+        return semantics.execute(instr, temp_regs)
+    
+    def _is_immediate_instruction(self, instr):
+        immediate_ops = ['addi', 'andi', 'ori', 'xori', 'slli', 'srli', 'srai', 'slti', 'sltiu']
+        return instr.name in immediate_ops

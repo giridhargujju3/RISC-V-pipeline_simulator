@@ -84,6 +84,8 @@ class EX_MEM_Register:
     
     # From ID/EX
     rd: int = 0
+    rs1: int = 0
+    rs2: int = 0
     rs2_value: int = 0  # For store instructions
     
     # ALU result
@@ -112,6 +114,8 @@ class EX_MEM_Register:
             "pc": self.pc,
             "valid": self.valid,
             "rd": self.rd,
+            "rs1": self.rs1,
+            "rs2": self.rs2,
             "alu_result": self.alu_result,
             "zero": self.zero,
             "branch_target": self.branch_target,

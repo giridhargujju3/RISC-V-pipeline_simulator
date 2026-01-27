@@ -324,6 +324,8 @@ class CPU:
             pc=self.id_ex.pc,
             valid=True,
             rd=self.id_ex.rd,
+            rs1=self.id_ex.rs1,
+            rs2=self.id_ex.rs2,
             rs2_value=op_b_reg,
             alu_result=alu_result.result,
             zero=alu_result.zero,
