@@ -42,7 +42,7 @@ export function ALUPanel({ alu, idEx, exMem, hazards }: ALUPanelProps) {
 
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 relative overflow-hidden">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 relative overflow-hidden h-full flex flex-col">
         {/* Animated background when active */}
         {hasInstruction && (
           <div className="absolute inset-0 bg-gradient-to-r from-alu/5 via-alu/10 to-alu/5 animate-pulse" />

@@ -244,17 +244,17 @@ const Index = () => {
           </div>
 
           <div className="hidden lg:block">
-            <div className="grid grid-cols-12 gap-4 mb-4">
-              <div className="col-span-3">
+            <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '500px' }}>
+              <div className="col-span-3 h-full">
                 <AssemblyEditor onLoad={loadProgram} />
               </div>
               
-              <div className="col-span-6 grid grid-cols-2 gap-4">
+              <div className="col-span-6 grid grid-cols-2 gap-4 h-full">
                 <ALUPanel alu={state.alu} idEx={state.ID_EX} exMem={state.EX_MEM} hazards={state.hazards} />
                 <ControlSignalsPanel signals={state.ID_EX.control_signals} />
               </div>
               
-              <div className="col-span-3">
+              <div className="col-span-3 h-full">
                 <RegisterFile
                   registers={state.registers}
                   updatedRegister={state.updatedRegister}

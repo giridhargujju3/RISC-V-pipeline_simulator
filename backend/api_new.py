@@ -143,30 +143,97 @@ def get_state_dict():
         addr += 4
     
     # Helper to convert instruction to dict
-    def instr_to_dict(pipe_reg):
+    def instr_to_dict(pipe_reg, include_control=False):
         if not pipe_reg.valid or pipe_reg.instr is None:
             return {
                 "valid": False,
                 "instruction": "NOP",
+                "assembly": "nop",
+                "pc": 0,
                 "rd": None,
                 "rs1": None,
                 "rs2": None,
-                "immediate": None
+                "immediate": None,
+                "control_signals": {
+                    "regWrite": False,
+                    "memRead": False,
+                    "memWrite": False,
+                    "memToReg": False,
+                    "aluSrc": False,
+                    "branch": False,
+                    "jump": False,
+                    "aluOp": "NOP"
+                } if include_control else None
             }
         
         instr = pipe_reg.instr
         assembly_str = instr.to_assembly() if hasattr(instr, 'to_assembly') else str(instr)
+        
+        # Determine instruction type
+        is_load = hasattr(instr, 'is_load') and instr.is_load
+        is_store = hasattr(instr, 'is_store') and instr.is_store
+        is_branch = hasattr(instr, 'is_branch') and instr.is_branch
+        is_jump = hasattr(instr, 'is_jump') and instr.is_jump
+        writes_rd = hasattr(instr, 'writes_rd') and instr.writes_rd
+        uses_imm = hasattr(instr, 'imm') and instr.imm is not None
+        
+        # Extract control signals for ID/EX stage
+        control_signals = None
+        if include_control:
+            # Get ALU operation
+            alu_op = "ADD"
+            if hasattr(instr, 'name'):
+                name = instr.name.upper()
+                if 'ADD' in name:
+                    alu_op = "ADD"
+                elif 'SUB' in name:
+                    alu_op = "SUB"
+                elif 'AND' in name:
+                    alu_op = "AND"
+                elif 'OR' in name:
+                    alu_op = "OR"
+                elif 'XOR' in name:
+                    alu_op = "XOR"
+                elif 'SLL' in name:
+                    alu_op = "SLL"
+                elif 'SRL' in name:
+                    alu_op = "SRL"
+                elif 'SRA' in name:
+                    alu_op = "SRA"
+                elif 'SLT' in name:
+                    alu_op = "SLT"
+                elif 'JAL' in name:
+                    alu_op = "JAL"
+                elif 'JALR' in name:
+                    alu_op = "JALR"
+                elif is_branch:
+                    alu_op = "SUB"
+            
+            control_signals = {
+                "regWrite": writes_rd,
+                "memRead": is_load,
+                "memWrite": is_store,
+                "memToReg": is_load,
+                "aluSrc": uses_imm or is_load or is_store,
+                "branch": is_branch,
+                "jump": is_jump,
+                "aluOp": alu_op
+            }
+        
         return {
             "valid": True,
             "instruction": assembly_str,
+            "assembly": assembly_str,
+            "pc": pipe_reg.pc if hasattr(pipe_reg, 'pc') else 0,
             "rd": instr.rd if hasattr(instr, 'rd') else None,
             "rs1": instr.rs1 if hasattr(instr, 'rs1') else None,
             "rs2": instr.rs2 if hasattr(instr, 'rs2') else None,
             "immediate": instr.imm if hasattr(instr, 'imm') and instr.imm is not None else 0,
-            "reg_write": instr.writes_rd if hasattr(instr, 'writes_rd') else False,
-            "mem_read": False,
-            "mem_write": False,
-            "alu_result": pipe_reg.result if hasattr(pipe_reg, 'result') and pipe_reg.result is not None else 0
+            "reg_write": writes_rd,
+            "mem_read": is_load,
+            "mem_write": is_store,
+            "alu_result": pipe_reg.result if hasattr(pipe_reg, 'result') and pipe_reg.result is not None else 0,
+            "control_signals": control_signals
         }
     
     return {
@@ -176,13 +243,13 @@ def get_state_dict():
         "registers": regs.get_all(),
         "pipeline": {
             "IF_ID": instr_to_dict(core.IF_ID),
-            "ID_EX": instr_to_dict(core.ID_EX),
+            "ID_EX": instr_to_dict(core.ID_EX, include_control=True),
             "EX_MEM": instr_to_dict(core.EX_MEM),
             "MEM_WB": instr_to_dict(core.MEM_WB)
         },
         "instruction_memory": instr_mem,
         "IF_ID": instr_to_dict(core.IF_ID),
-        "ID_EX": instr_to_dict(core.ID_EX),
+        "ID_EX": instr_to_dict(core.ID_EX, include_control=True),
         "EX_MEM": instr_to_dict(core.EX_MEM),
         "MEM_WB": instr_to_dict(core.MEM_WB),
         "alu": {

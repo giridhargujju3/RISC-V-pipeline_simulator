@@ -11,8 +11,8 @@ interface RegisterFileProps {
 export function RegisterFile({ registers, updatedRegister }: RegisterFileProps) {
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4">
-        <div className="panel-header">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 h-full flex flex-col">
+        <div className="panel-header flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-register" />
           <h2 className="panel-title">Register File (x0-x31)</h2>
           <Tooltip>
@@ -29,6 +29,7 @@ export function RegisterFile({ registers, updatedRegister }: RegisterFileProps) 
           </Tooltip>
         </div>
         
+        <div className="flex-1 overflow-y-auto mt-3">
         {/* Desktop: 8 columns */}
         <div className="hidden lg:grid grid-cols-8 gap-1.5">
           {registers.map((value, index) => (
@@ -64,6 +65,7 @@ export function RegisterFile({ registers, updatedRegister }: RegisterFileProps) 
               compact
             />
           ))}
+        </div>
         </div>
       </div>
     </TooltipProvider>
