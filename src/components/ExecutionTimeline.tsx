@@ -15,7 +15,7 @@ export function ExecutionTimeline({ state }: ExecutionTimelineProps) {
   ];
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
+    <div className="bg-card rounded-xl border border-border p-4 h-full flex flex-col">
       <div className="panel-header">
         <div className="w-2 h-2 rounded-full bg-dataflow" />
         <h2 className="panel-title">Execution Timeline</h2>

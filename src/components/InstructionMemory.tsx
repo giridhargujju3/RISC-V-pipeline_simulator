@@ -14,7 +14,7 @@ export function InstructionMemory({ instructions, currentPC }: InstructionMemory
   
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 h-full flex flex-col">
         <div className="panel-header">
           <div className="w-2 h-2 rounded-full bg-primary" />
           <h2 className="panel-title">Instruction Memory</h2>
@@ -28,7 +28,7 @@ export function InstructionMemory({ instructions, currentPC }: InstructionMemory
           </Tooltip>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-32 overflow-y-auto">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 overflow-y-auto min-h-0 content-start">
           {safeInstructions.length > 0 ? safeInstructions.map((instr, index) => {
             if (!instr || typeof instr !== 'object') return null;
             

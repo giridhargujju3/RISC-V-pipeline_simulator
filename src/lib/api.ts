@@ -1,10 +1,9 @@
-// FastAPI Backend API Client
 import { CPUState, Instruction } from '@/types/cpu';
 
 // Configuration - Backend only
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-  enabled: true, // Always enabled
+  enabled: true,
 };
 
 export interface APIPipelineRegister {
@@ -31,6 +30,20 @@ export interface APIPipelineRegister {
   };
 }
 
+export interface APIHazardDetail {
+  type: string;
+  source: string;
+  destination: string;
+  resolution: string;
+  description: string;
+}
+
+export interface APIForwardPath {
+  from: string;
+  register: number;
+  value: number;
+}
+
 export interface APIState {
   cycle: number;
   pc: number;
@@ -52,16 +65,66 @@ export interface APIState {
     result: number;
     zero: boolean;
   };
+  // Phase 1: expanded hazards
   hazards: {
     stall: boolean;
-    forward_a: string | null;
-    forward_b: string | null;
+    forward_a: APIForwardPath | null;
+    forward_b: APIForwardPath | null;
+    raw?: boolean;
+    war?: boolean;
+    waw?: boolean;
+    structural?: boolean;
+    memory?: boolean;
+    control?: boolean;
+    hazard_details?: APIHazardDetail[];
   };
+  hazard_stats?: {
+    raw_hazards: number;
+    war_hazards: number;
+    waw_hazards: number;
+    structural_hazards: number;
+    memory_hazards: number;
+    control_hazards: number;
+    branch_flushes: number;
+    total_stall_cycles: number;
+    completed_instructions: number;
+  };
+  static_dependencies?: Array<{
+    type: string;
+    producer: number;
+    consumer: number;
+    register: string | null;
+    producer_instr: string;
+    consumer_instr: string;
+    distance: number;
+    producer_pc: string;
+    consumer_pc: string;
+    control_kind?: string;
+  }>;
+  // Phase 3: pipeline trace
+  pipeline_trace?: Array<{
+    cycle: number;
+    mode: string;
+    IF?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    ID?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    EX?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    MEM?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    WB?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    FETCH?:    { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    DISPATCH?: { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    EXECUTE?:  { valid: boolean; instruction: string; mnemonic: string; pc: string };
+    COMMIT?:   { valid: boolean; instruction: string; mnemonic: string; pc: string };
+  }>;
+  // Phase 4: OoO
+  ooo_state?: any | null;
+  execution_mode?: string;
   running: boolean;
   halted: boolean;
   statistics?: {
     total_cycles: number;
     execution_time_seconds: number;
+    cpi: number;
+    instructions_completed: number;
     stage_cycles: {
       IF: number;
       ID: number;
@@ -119,9 +182,7 @@ class CPUApi {
   }
 
   async loadProgram(instructions: Instruction[]): Promise<APIState> {
-    // Convert Instruction objects to machine code integers
     const machineCode = instructions.map(instr => parseInt(instr.hex, 16));
-    
     const response = await fetch(`${this.baseUrl}/load`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -164,12 +225,33 @@ export const cpuApi = new CPUApi(API_CONFIG.baseUrl);
 
 // Convert API response to frontend CPUState format
 export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CPUState {
-  const updatedRegister = prevState 
+  const updatedRegister = prevState
     ? apiState.registers.findIndex((v, i) => v !== prevState.registers[i])
     : null;
 
-  // Ensure instruction_memory exists and is an array
   const instructionMemory = apiState.instruction_memory || [];
+  const hz = apiState.hazards || {};
+  const hs = apiState.hazard_stats;
+  const sd = apiState.static_dependencies || [];
+  const pt = apiState.pipeline_trace || [];
+
+  // Map forwarding paths
+  const mapForward = (fp: APIForwardPath | null | undefined) => {
+    if (!fp) return null;
+    return { from: fp.from as 'EX_MEM' | 'MEM_WB', register: fp.register, value: fp.value };
+  };
+
+  // Map hazard details
+  const mapDetails = (details: APIHazardDetail[] | undefined) => {
+    if (!details) return [];
+    return details.map(d => ({
+      type: d.type as any,
+      source: d.source,
+      destination: d.destination,
+      resolution: d.resolution as any,
+      description: d.description,
+    }));
+  };
 
   return {
     cycle: apiState.cycle,
@@ -182,9 +264,10 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       opcode: i.opcode,
     })),
     dataMemory: new Map(),
+
     IF_ID: {
-      instruction: apiState.IF_ID?.instruction || "NOP",
-      assembly: apiState.IF_ID?.assembly || apiState.IF_ID?.instruction || "NOP",
+      instruction: apiState.IF_ID?.instruction || 'NOP',
+      assembly: apiState.IF_ID?.assembly || apiState.IF_ID?.instruction || 'NOP',
       pc: apiState.IF_ID?.pc || 0,
       valid: apiState.IF_ID?.valid || false,
       rd: apiState.IF_ID?.rd,
@@ -192,8 +275,8 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       rs2: apiState.IF_ID?.rs2,
     },
     ID_EX: {
-      instruction: apiState.ID_EX?.instruction || "NOP",
-      assembly: apiState.ID_EX?.assembly || apiState.ID_EX?.instruction || "NOP",
+      instruction: apiState.ID_EX?.instruction || 'NOP',
+      assembly: apiState.ID_EX?.assembly || apiState.ID_EX?.instruction || 'NOP',
       pc: apiState.ID_EX?.pc || 0,
       valid: apiState.ID_EX?.valid || false,
       rd: apiState.ID_EX?.rd,
@@ -203,19 +286,13 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       rs2_value: apiState.ID_EX?.rs2_value,
       immediate: apiState.ID_EX?.immediate,
       control_signals: apiState.ID_EX?.control_signals || {
-        regWrite: false,
-        memRead: false,
-        memWrite: false,
-        memToReg: false,
-        aluSrc: false,
-        branch: false,
-        jump: false,
-        aluOp: "NOP"
-      }
+        regWrite: false, memRead: false, memWrite: false, memToReg: false,
+        aluSrc: false, branch: false, jump: false, aluOp: 'NOP',
+      },
     },
     EX_MEM: {
-      instruction: apiState.EX_MEM?.instruction || "NOP",
-      assembly: apiState.EX_MEM?.assembly || apiState.EX_MEM?.instruction || "NOP",
+      instruction: apiState.EX_MEM?.instruction || 'NOP',
+      assembly: apiState.EX_MEM?.assembly || apiState.EX_MEM?.instruction || 'NOP',
       pc: apiState.EX_MEM?.pc || 0,
       valid: apiState.EX_MEM?.valid || false,
       rd: apiState.EX_MEM?.rd,
@@ -226,8 +303,8 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       mem_write: false,
     },
     MEM_WB: {
-      instruction: apiState.MEM_WB?.instruction || "NOP",
-      assembly: apiState.MEM_WB?.assembly || apiState.MEM_WB?.instruction || "NOP",
+      instruction: apiState.MEM_WB?.instruction || 'NOP',
+      assembly: apiState.MEM_WB?.assembly || apiState.MEM_WB?.instruction || 'NOP',
       pc: apiState.MEM_WB?.pc || 0,
       valid: apiState.MEM_WB?.valid || false,
       rd: apiState.MEM_WB?.rd,
@@ -236,25 +313,63 @@ export function apiStateToFrontend(apiState: APIState, prevState?: CPUState): CP
       reg_write: true,
       mem_to_reg: false,
     },
-    alu: apiState.alu || {
-      operandA: 0,
-      operandB: 0,
-      operation: "NOP",
-      result: 0,
-      zero: true
-    },
+
+    alu: apiState.alu || { operandA: 0, operandB: 0, operation: 'NOP', result: 0, zero: true },
+
+    // Phase 1: full hazard state
     hazards: {
-      rawHazard: false,
-      forwardA: null,
-      forwardB: null,
-      stallRequired: apiState.hazards?.stall || false,
-      hazardDetails: [],
+      rawHazard:        hz.raw        || false,
+      warHazard:        hz.war        || false,
+      wawHazard:        hz.waw        || false,
+      structuralHazard: hz.structural || false,
+      memoryHazard:     hz.memory     || false,
+      controlHazard:    hz.control    || false,
+      stallRequired:    hz.stall      || false,
+      forwardA: mapForward(hz.forward_a),
+      forwardB: mapForward(hz.forward_b),
+      hazardDetails: mapDetails(hz.hazard_details),
     },
-    stall: apiState.hazards?.stall || false,
+
+    // Phase 1: cumulative stats
+    hazardStats: hs ? {
+      raw_hazards:          hs.raw_hazards,
+      war_hazards:          hs.war_hazards,
+      waw_hazards:          hs.waw_hazards,
+      structural_hazards:   hs.structural_hazards,
+      memory_hazards:       hs.memory_hazards,
+      control_hazards:      hs.control_hazards,
+      branch_flushes:       hs.branch_flushes,
+      total_stall_cycles:   hs.total_stall_cycles,
+      completed_instructions: hs.completed_instructions,
+    } : undefined,
+
+    // Phase 1: static dependencies
+    staticDependencies: sd.map(d => ({
+      type: d.type as any,
+      producer: d.producer,
+      consumer: d.consumer,
+      register: d.register,
+      producer_instr: d.producer_instr,
+      consumer_instr: d.consumer_instr,
+      distance: d.distance,
+      producer_pc: d.producer_pc,
+      consumer_pc: d.consumer_pc,
+      control_kind: d.control_kind,
+    })),
+
+    // Phase 3: pipeline trace
+    pipelineTrace: pt as any,
+
+    // Phase 4: OoO state
+    oooState: apiState.ooo_state || null,
+    executionMode: (apiState.execution_mode as 'inorder' | 'ooo') || 'inorder',
+
+    stall: hz.stall || false,
     flush: false,
     running: apiState.running || false,
     halted: apiState.halted || false,
-    updatedRegister: updatedRegister !== -1 ? updatedRegister : null,
+    updatedRegister: (updatedRegister !== null && updatedRegister !== -1) ? updatedRegister : null,
+
     statistics: apiState.statistics,
   };
 }

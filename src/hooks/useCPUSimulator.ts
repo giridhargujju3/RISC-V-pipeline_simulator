@@ -408,6 +408,16 @@ export function useCPUSimulator() {
     }
   }, [cycleHistory]);
 
+  const applyArchState = useCallback((apiState: any) => {
+    try {
+      const newState = apiStateToFrontend(apiState);
+      setState(newState);
+      setCycleHistory([newState]);
+    } catch (error) {
+      console.error('Failed to apply arch state:', error);
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       if (runIntervalRef.current) {
@@ -470,6 +480,7 @@ export function useCPUSimulator() {
     pause,
     backward,
     loadProgram,
+    applyArchState,
     useBackend,
     setUseBackend: () => {}, // No-op since we always use backend
     configOptions,

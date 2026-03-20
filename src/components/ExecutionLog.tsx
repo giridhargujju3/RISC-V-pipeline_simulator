@@ -4,6 +4,7 @@ import { CPUState } from '@/types/cpu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState, useEffect } from 'react';
 import { CycleDetailsSidebar } from './CycleDetailsSidebar';
+import { ExpandModal } from '@/components/ExpandModal';
 
 interface ExecutionLogProps {
   state: CPUState;
@@ -128,14 +129,57 @@ export function ExecutionLog({ state }: ExecutionLogProps) {
               </TooltipContent>
             </Tooltip>
           </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1.5 hover:bg-secondary rounded transition-colors group"
-            aria-label="Open cycle details"
-            title="View detailed cycle information"
-          >
-            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-          </button>
+          <div className="flex items-center gap-1">
+            <ExpandModal title="Execution Log — Full Pipeline Activity">
+              <div className="flex flex-col h-full">
+                <div className="text-xs text-muted-foreground mb-3 shrink-0">
+                  Total Cycles: <span className="font-mono text-foreground font-semibold">{state.cycle}</span>
+                  {' '}· Status: <span className={state.halted ? 'text-destructive font-semibold' : 'text-success font-semibold'}>{state.halted ? 'Halted' : 'Running'}</span>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-2 pr-2">
+                    {cycleHistory.length === 0 ? (
+                      <div className="text-center text-muted-foreground text-sm py-12">
+                        <Terminal className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                        Start execution to see pipeline activity
+                      </div>
+                    ) : (
+                      [...cycleHistory].reverse().map(({ cycle: c, state: s }) => {
+                        return (
+                          <div key={c} className="bg-secondary/20 rounded-lg border border-border/30 p-3">
+                            <div className="text-xs font-semibold text-foreground mb-2 pb-1 border-b border-border/50">
+                              Cycle {c}
+                            </div>
+                            <div className="grid grid-cols-5 gap-2 text-[10px]">
+                              {(['IF','ID','EX','MEM','WB'] as const).map(stage => {
+                                const colors = { IF:'text-blue-400', ID:'text-green-400', EX:'text-yellow-400', MEM:'text-cyan-400', WB:'text-purple-400' };
+                                const reg = s[stage === 'IF' ? 'IF_ID' : stage === 'ID' ? 'ID_EX' : stage === 'EX' ? 'ID_EX' : stage === 'MEM' ? 'EX_MEM' : 'MEM_WB'];
+                                const asm = reg?.assembly || reg?.instruction || '—';
+                                return (
+                                  <div key={stage} className="text-center">
+                                    <div className={`font-bold mb-0.5 ${colors[stage]}`}>{stage}</div>
+                                    <div className="font-mono truncate text-foreground/80">{asm}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </ExpandModal>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 hover:bg-secondary rounded transition-colors group"
+              aria-label="Open cycle details"
+              title="View detailed cycle information"
+            >
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1 overflow-hidden">

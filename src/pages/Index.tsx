@@ -15,8 +15,12 @@ import { HazardPanel } from '@/components/HazardPanel';
 import { BackendStatus } from '@/components/BackendStatus';
 import { ConfigPanel } from '@/components/ConfigPanel';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PipelineTraceTable } from '@/components/PipelineTraceTable';
+import { StaticDepsPanel } from '@/components/StaticDepsPanel';
+import { ROBPanel } from '@/components/ROBPanel';
+import { ReservationStationPanel } from '@/components/ReservationStationPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Code2, Cpu, Activity, AlertTriangle, Settings2, Info, Zap, Layers, ArrowRight, BarChart3 } from 'lucide-react';
+import { Code2, Cpu, Activity, AlertTriangle, Settings2, Info, Zap, Layers, ArrowRight, BarChart3, GitMerge, Database } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const RiscVLogo = () => (
@@ -46,7 +50,8 @@ const Index = () => {
     run, 
     pause,
     backward,
-    loadProgram, 
+    loadProgram,
+    applyArchState,
     useBackend, 
     setUseBackend,
     configOptions,
@@ -192,7 +197,7 @@ const Index = () => {
               
               <TabsContent value="code" className="mt-4 space-y-4">
                 <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
-                  <AssemblyEditor onLoad={loadProgram} />
+                  <AssemblyEditor onLoad={loadProgram} onArchApplied={reset} onArchState={applyArchState} />
                 </div>
               </TabsContent>
               
@@ -239,52 +244,94 @@ const Index = () => {
                 <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-accent/20 shadow-xl p-1">
                   <ExecutionStats state={state} onDetails={() => setStatsDetailsOpen(true)} />
                 </div>
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                  <PipelineTraceTable
+                    trace={state.pipelineTrace || []}
+                    mode={state.executionMode || 'inorder'}
+                  />
+                </div>
+                <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                  <StaticDepsPanel deps={state.staticDependencies || []} />
+                </div>
+                {state.executionMode === 'ooo' && state.oooState && (
+                  <>
+                    <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                      <ROBPanel oooState={state.oooState} />
+                    </div>
+                    <div className="bg-gradient-to-br from-card to-card/80 rounded-xl border-2 border-primary/20 shadow-xl p-1">
+                      <ReservationStationPanel oooState={state.oooState} />
+                    </div>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </div>
 
           <div className="hidden lg:block">
-            <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '500px' }}>
-              <div className="col-span-3 h-full">
-                <AssemblyEditor onLoad={loadProgram} />
+            {/* Row 1: Assembly Editor | ALU + Control | Register File — fixed 480px */}
+            <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '480px' }}>
+              <div className="col-span-3 h-full overflow-hidden">
+                <AssemblyEditor onLoad={loadProgram} onArchApplied={reset} onArchState={applyArchState} />
               </div>
-              
               <div className="col-span-6 grid grid-cols-2 gap-4 h-full">
-                <ALUPanel alu={state.alu} idEx={state.ID_EX} exMem={state.EX_MEM} hazards={state.hazards} />
-                <ControlSignalsPanel signals={state.ID_EX.control_signals} />
+                <div className="h-full overflow-hidden">
+                  <ALUPanel alu={state.alu} idEx={state.ID_EX} exMem={state.EX_MEM} hazards={state.hazards} />
+                </div>
+                <div className="h-full overflow-hidden">
+                  <ControlSignalsPanel signals={state.ID_EX.control_signals} />
+                </div>
               </div>
-              
-              <div className="col-span-3 h-full">
-                <RegisterFile
-                  registers={state.registers}
-                  updatedRegister={state.updatedRegister}
-                />
+              <div className="col-span-3 h-full overflow-hidden">
+                <RegisterFile registers={state.registers} updatedRegister={state.updatedRegister} />
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-4 mb-4">
-              <div className="col-span-6">
+            {/* Row 2: Hazard Panel | Execution Log — fixed 320px */}
+            <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '320px' }}>
+              <div className="col-span-6 h-full overflow-hidden">
                 <HazardPanel state={state} />
               </div>
-              <div className="col-span-6">
+              <div className="col-span-6 h-full overflow-hidden">
                 <ExecutionLog state={state} />
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-4 mb-4">
-              <div className="col-span-4">
+            {/* Row 3: Stats | Pipeline Trace | Static Deps — fixed 400px */}
+            <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '400px' }}>
+              <div className="col-span-4 h-full overflow-hidden">
                 <ExecutionStats state={state} onDetails={() => setStatsDetailsOpen(true)} />
               </div>
-              <div className="col-span-8">
-                <ExecutionTimeline state={state} />
+              <div className="col-span-4 h-full overflow-hidden">
+                <PipelineTraceTable
+                  trace={state.pipelineTrace || []}
+                  mode={state.executionMode || 'inorder'}
+                />
+              </div>
+              <div className="col-span-4 h-full overflow-hidden">
+                <StaticDepsPanel deps={state.staticDependencies || []} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <InstructionMemory
-                instructions={state.instructionMemory}
-                currentPC={state.pc}
-              />
+            {/* Row 4: Execution Timeline — fixed 220px */}
+            <div className="mb-4" style={{ height: '220px' }}>
+              <ExecutionTimeline state={state} />
+            </div>
+
+            {/* Row 5 (OoO only): ROB | Reservation Station — fixed 360px */}
+            {state.executionMode === 'ooo' && state.oooState && (
+              <div className="grid grid-cols-12 gap-4 mb-4" style={{ height: '360px' }}>
+                <div className="col-span-6 h-full overflow-hidden">
+                  <ROBPanel oooState={state.oooState} />
+                </div>
+                <div className="col-span-6 h-full overflow-hidden">
+                  <ReservationStationPanel oooState={state.oooState} />
+                </div>
+              </div>
+            )}
+
+            {/* Row 6: Instruction Memory — fixed 280px */}
+            <div style={{ height: '280px' }}>
+              <InstructionMemory instructions={state.instructionMemory} currentPC={state.pc} />
             </div>
           </div>
 
@@ -296,12 +343,12 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">IF → ID → EX → MEM → WB</p>
               </div>
               <div className="p-4 bg-card/50 rounded-xl border border-border/50 shadow-lg">
-                <p className="font-bold text-accent mb-2 text-sm">Features</p>
-                <p className="text-xs text-muted-foreground">Hazard Detection • Forwarding • Stalls</p>
+                <p className="font-bold text-accent mb-2 text-sm">Hazard Detection</p>
+                <p className="text-xs text-muted-foreground">RAW • WAR • WAW • Structural • Memory • Control</p>
               </div>
               <div className="p-4 bg-card/50 rounded-xl border border-border/50 shadow-lg">
                 <p className="font-bold text-success mb-2 text-sm">Architecture</p>
-                <p className="text-xs text-muted-foreground">RISC-V 32-bit Pipeline Processor</p>
+                <p className="text-xs text-muted-foreground">In-Order Pipeline • OoO Tomasulo • Trace History</p>
               </div>
             </div>
           </div>

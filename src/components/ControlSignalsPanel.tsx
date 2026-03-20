@@ -2,6 +2,7 @@ import { ControlSignals } from '@/types/cpu';
 import { cn } from '@/lib/utils';
 import { HelpCircle, Cpu, CheckCircle2, XCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ExpandModal } from '@/components/ExpandModal';
 
 interface ControlSignalsPanelProps {
   signals?: ControlSignals;
@@ -88,6 +89,46 @@ export function ControlSignalsPanel({ signals }: ControlSignalsPanelProps) {
                 <p className="text-xs">Generates control signals from instruction opcode</p>
               </TooltipContent>
             </Tooltip>
+            <ExpandModal title="Control Unit — ID Stage">
+              <div className="space-y-4">
+                {!hasSignals ? (
+                  <div className="flex items-center justify-center h-32 text-muted-foreground">
+                    <div className="text-center space-y-2">
+                      <Cpu className="w-10 h-10 mx-auto opacity-30" />
+                      <p>No instruction decoded</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-control/10 border border-control/30 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Instruction Type</span>
+                      <span className="font-mono text-sm text-control font-bold">{getInstructionType()}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {signalList.map((signal) => (
+                        <div key={signal.name} className={cn(
+                          "p-3 rounded-lg border",
+                          signal.value
+                            ? "bg-control/20 text-control border-control/50"
+                            : "bg-secondary/30 text-muted-foreground border-border/50"
+                        )}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {signal.value ? <CheckCircle2 className="w-4 h-4 text-success" /> : <XCircle className="w-4 h-4 text-muted-foreground/50" />}
+                            <span className="font-semibold text-sm">{signal.name}</span>
+                            <span className="ml-auto font-mono font-bold">{signal.value ? '1' : '0'}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">{getSignalExplanation(signal.name, signal.value || false)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 rounded-lg border-2 border-alu/50 bg-alu/10 flex items-center justify-between">
+                      <span className="font-semibold text-sm text-alu">ALU Operation</span>
+                      <span className="font-mono text-sm font-bold text-alu">{signals?.aluOp || 'NOP'}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </ExpandModal>
           </div>
         </div>
 

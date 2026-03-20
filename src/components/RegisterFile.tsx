@@ -2,6 +2,8 @@ import { REGISTER_NAMES } from '@/types/cpu';
 import { cn } from '@/lib/utils';
 import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ExpandModal } from '@/components/ExpandModal';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface RegisterFileProps {
   registers: number[];
@@ -27,6 +29,35 @@ export function RegisterFile({ registers, updatedRegister }: RegisterFileProps) 
               </p>
             </TooltipContent>
           </Tooltip>
+          <ExpandModal title="Register File — All 32 Registers (x0–x31)">
+            <ScrollArea className="h-full">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 pr-2">
+                {registers.map((value, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "rounded-lg border p-2 text-center transition-all",
+                      updatedRegister === index
+                        ? "border-register bg-register/20"
+                        : "border-border bg-secondary/20"
+                    )}
+                  >
+                    <div className="text-[10px] text-muted-foreground">x{index}</div>
+                    <div className="text-[9px] text-muted-foreground/60">{REGISTER_NAMES[index]}</div>
+                    <div className={cn(
+                      "text-xs font-mono font-semibold mt-0.5",
+                      value !== 0 ? "text-foreground" : "text-muted-foreground/40"
+                    )}>
+                      {value}
+                    </div>
+                    <div className="text-[8px] text-muted-foreground/50 font-mono">
+                      0x{(value >>> 0).toString(16).toUpperCase().padStart(4, '0')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </ExpandModal>
         </div>
         
         <div className="flex-1 overflow-y-auto mt-3">

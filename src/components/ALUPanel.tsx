@@ -1,6 +1,7 @@
 import { ALUState, PipelineRegister, HazardState } from '@/types/cpu';
 import { HelpCircle, Zap, ArrowRight } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ExpandModal } from '@/components/ExpandModal';
 
 interface ALUPanelProps {
   alu: ALUState;
@@ -60,6 +61,72 @@ export function ALUPanel({ alu, idEx, exMem, hazards }: ALUPanelProps) {
                 <p className="text-xs">Arithmetic Logic Unit - performs calculations in Execute stage</p>
               </TooltipContent>
             </Tooltip>
+            <ExpandModal title="ALU Unit — Execute Stage">
+              <div className="space-y-4 text-sm">
+                {!hasInstruction ? (
+                  <div className="flex items-center justify-center h-32 text-muted-foreground">
+                    <div className="text-center space-y-2">
+                      <Zap className="w-10 h-10 mx-auto opacity-30" />
+                      <p>No instruction executed yet</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-alu/10 border border-alu/30 rounded-lg p-3">
+                      <div className="text-xs text-muted-foreground mb-1">Just Executed</div>
+                      <div className="font-mono text-base text-alu font-semibold">{displayInstruction!.assembly}</div>
+                    </div>
+                    <div className="bg-secondary/50 border border-border rounded-lg p-4">
+                      <div className="text-xs text-muted-foreground mb-3">Calculation</div>
+                      <div className="flex items-center justify-center gap-3 font-mono text-lg">
+                        <span className="px-3 py-2 rounded bg-card">{alu.operandA}</span>
+                        <span className="text-alu font-bold text-2xl">{getOperationSymbol(alu.operation)}</span>
+                        <span className="px-3 py-2 rounded bg-card">{alu.operandB}</span>
+                        <ArrowRight className="w-5 h-5 text-accent" />
+                        <span className="px-3 py-2 rounded bg-success/20 text-success font-bold border border-success/50">{alu.result}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Operation</div>
+                        <div className="font-mono text-sm text-alu font-semibold">{alu.operation}</div>
+                      </div>
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Destination</div>
+                        <div className="font-mono text-sm font-semibold">x{displayInstruction!.rd ?? '?'}</div>
+                      </div>
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Zero Flag</div>
+                        <div className={`text-sm font-mono font-semibold ${alu.zero ? 'text-success' : 'text-muted-foreground'}`}>
+                          {alu.zero ? '1 (TRUE)' : '0 (FALSE)'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground mb-2">Operand A (rs1)</div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">x{displayInstruction!.rs1 ?? '?'}</span>
+                          <span className="font-mono font-semibold">{alu.operandA}</span>
+                        </div>
+                      </div>
+                      <div className="bg-card border border-border rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground mb-2">Operand B (rs2/imm)</div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">x{displayInstruction!.rs2 ?? 'imm'}</span>
+                          <span className="font-mono font-semibold">{alu.operandB}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {(forwardA || forwardB) && (
+                      <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-success text-sm">
+                        ⚡ {forwardA && forwardB ? 'Double' : 'Single'} forwarding active
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </ExpandModal>
           </div>
 
           {!hasInstruction ? (
